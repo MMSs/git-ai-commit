@@ -1,0 +1,68 @@
+suggestion:
+  mode: "fast"  # or "quality"
+  format: "single-line"  # or "multi-line"
+  max_length: 72
+  convention: "conventional"  # or "gitmoji", "angular", "custom"
+
+commit_conventions:
+  current: "conventional"  # The active convention to use
+  conventions:
+    conventional:
+      types:
+        - feat
+        - fix
+        - docs
+        - style
+        - refactor
+        - test
+        - chore
+      prefixes: []
+      scopes: []  # Can be customized per project
+      template: ""  # Custom template
+
+    angular:
+      types:
+        - feat
+        - fix
+        - docs
+        - style
+        - refactor
+        - perf
+        - test
+        - build
+        - ci
+        - chore
+        - revert
+      prefixes: []
+      scopes: []
+      template: ""  # Custom template
+
+    gitmoji:
+      types: []
+      prefixes:
+        - "✨ feat:"     # Introduce new features
+        - "🐛 fix:"      # Fix a bug
+        - "📚 docs:"     # Documentation only changes
+        - "💄 style:"    # Features and updates related to styling
+        - "♻️ refactor:" # Code change that neither fixes a bug nor adds a feature
+        - "✅ test:"     # Adding missing tests
+        - "🔧 chore:"    # Changes to the build process or auxiliary tools
+      scopes: []
+      template: ""  # Custom template
+
+    custom:
+      types: []      # Can be customized
+      prefixes: []   # Can be customized
+      scopes: []     # Can be customized
+      template: ""   # Custom message template
+
+openai:
+  model: "gpt-4o"
+  temperature: 0.7
+  max_tokens: 150
+  streaming: true
+
+cache:
+  enabled: true
+  max_size: 100
+  ttl: 3600
