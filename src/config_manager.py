@@ -17,17 +17,19 @@ class ConfigManager:
             config = yaml.safe_load(f)
 
         # Load global config if exists
-        global_config_path = (
-            Path.home() / ".config" / "git-ai-commit" / "config.{yaml,yml}"
+        global_config_path = next(
+            (Path.home() / ".config" / "git-ai-commit").glob("config.y*ml"),
+            None,
         )
-        if global_config_path.exists():
+
+        if global_config_path:
             with open(global_config_path) as f:
                 global_config = yaml.safe_load(f)
                 config.update(global_config)
 
         # Load project config if exists
-        project_config_path = Path.cwd() / ".git-ai-commit.{yaml,yml}"
-        if project_config_path.exists():
+        project_config_path = next((Path.cwd()).glob(".git-ai-commit.y*ml"), None)
+        if project_config_path:
             with open(project_config_path) as f:
                 project_config = yaml.safe_load(f)
                 config.update(project_config)
