@@ -24,11 +24,10 @@ class CommitSuggester:
         try:
             diff = self.git.get_staged_changes()
             if not diff:
-                console.print("[yellow]No staged changes found.[/]")
+                console.print("[yellow]Warning: No staged changes found.[/]")
                 return None
 
             context = self.git.get_repo_context()
-            console.print("[green]Generating suggestion...[/]")
 
             suggestion = Text()
             with Live(suggestion, console=console, refresh_per_second=10) as live:
