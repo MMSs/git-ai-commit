@@ -1,7 +1,6 @@
 import asyncio
 from typing import Optional
 import click
-from pathlib import Path
 from rich.console import Console
 from rich.live import Live
 from rich.text import Text
