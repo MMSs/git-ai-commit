@@ -19,7 +19,7 @@ class GitHandler:
             return None
 
         # Get staged changes
-        diff = self.repo.git.diff("--cached")
+        diff = self.repo.git.diff("--cached", unified=10)
         return diff if diff else None
 
     def get_staged_files(self) -> List[str]:
@@ -33,7 +33,6 @@ class GitHandler:
                 "repo_name": Path(self.repo.working_dir).name,
                 "current_branch": self.repo.active_branch.name,
                 "last_commit_message": str(self.repo.head.commit.message).strip(),
-                "unstaged_changes": self.repo.git.diff(),
             }
         except Exception:
             return {}
