@@ -1,11 +1,20 @@
 from pathlib import Path
 import yaml
 from typing import Any, Dict
+from git import Repo, InvalidGitRepositoryError
 
 
 class ConfigManager:
     def __init__(self):
         self.config = self._load_config()
+
+    def _get_git_root(self) -> Path:
+        """Get the root directory of the current git repository."""
+        try:
+            repo = Repo(Path.cwd(), search_parent_directories=True)
+            return Path(repo.working_dir)
+        except InvalidGitRepositoryError:
+            return Path.cwd()  # Fallback to current directory if not in a git repo
 
     def _load_config(self) -> Dict[str, Any]:
         """Load configuration from multiple sources."""
@@ -27,8 +36,9 @@ class ConfigManager:
                 global_config = yaml.safe_load(f)
                 config.update(global_config)
 
-        # Load project config if exists
-        project_config_path = next((Path.cwd()).glob(".git-ai-commit.y*ml"), None)
+        # Load project config if exists, searching from git root
+        git_root = self._get_git_root()
+        project_config_path = next(git_root.glob(".git-ai-commit.y*ml"), None)
         if project_config_path:
             with open(project_config_path) as f:
                 project_config = yaml.safe_load(f)
