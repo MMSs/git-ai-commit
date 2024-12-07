@@ -41,3 +41,4 @@ Thumbs.db
 *.log
 .coverage
 htmlcov/
+.git-ai-commit.yaml
