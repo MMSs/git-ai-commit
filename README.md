@@ -11,6 +11,11 @@ An AI-powered Git commit message generator that provides intelligent suggestions
 - 🔌 Seamless Zsh shell integration
 
 ## Installation
+
+### Requirements
+- Python 3.11 or higher
+- Poetry package manager
+
 ```bash
 # Clone the repository
 git clone https://github.com/yourusername/git-ai-commit.git

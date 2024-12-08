@@ -13,6 +13,12 @@ handle_error() {
 
 echo "Installing git-ai-commit..."
 
+# Check Python version
+PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+if [ $(echo "$PYTHON_VERSION < 3.11" | bc -l) -eq 1 ]; then
+    handle_error "Python 3.11 or higher is required. Current version: $PYTHON_VERSION"
+fi
+
 # Check if poetry is installed
 if ! command -v poetry &> /dev/null; then
     echo -e "${RED}Poetry is not installed. Installing poetry...${NC}"
