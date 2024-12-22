@@ -1,4 +1,3 @@
-import argparse
 import asyncio
 import json
 import os
@@ -44,8 +43,8 @@ DEFAULT_CONFIG = {
                 "example": "feat(api): add user authentication feature",
             },
             "multi-line": {
-                "template": "<type>(<scope>): <description>\n\n<body>\n\n<footer>",
-                "example": "feat(api): add user authentication feature\n\n- Implemented user login and registration using JWT tokens.\n- Added password hashing and validation.\n- Updated user model to include authentication fields.\n\nFixes #123\nSigned-off-by: John Doe <john.doe@example.com>",
+                "template": "<type>(<scope>): <description>\\n\\n<body>\\n\\n<footer>",
+                "example": "feat(api): add user authentication feature\\n\\n- Implemented user login and registration using JWT tokens.\\n- Added password hashing and validation.\\n- Updated user model to include authentication fields.\\n\\nFixes #123\\nSigned-off-by: John Doe <john.doe@example.com>",
             },
         },
         "gitmoji": {
@@ -63,8 +62,8 @@ DEFAULT_CONFIG = {
                 "example": "✨ feat: add user authentication feature",
             },
             "multi-line": {
-                "template": "<prefix>: <description>\n\n<body>\n\n<footer>",
-                "example": "✨ feat: add user authentication feature\n\n- Implemented user login and registration using JWT tokens.\n- Added password hashing and validation.\n- Updated user model to include authentication fields.\n\nFixes #123\nSigned-off-by: John Doe <john.doe@example.com>",
+                "template": "<prefix>: <description>\\n\\n<body>\\n\\n<footer>",
+                "example": "✨ feat: add user authentication feature\\n\\n- Implemented user login and registration using JWT tokens.\\n- Added password hashing and validation.\\n- Updated user model to include authentication fields.\\n\\nFixes #123\\nSigned-off-by: John Doe <john.doe@example.com>",
             },
         },
     },
@@ -118,21 +117,25 @@ class GitAICommit:
 
     def _get_convention_guide(self, convention: str) -> str:
         """Get the convention-specific guide for the prompt."""
+        if convention not in self.config["convention_configs"]:
+            raise ValueError(f"Convention '{convention}' does not exist.")
         convention_config = self.config["convention_configs"][convention]
         if convention_config:
             convention_guide = ""
             if template := convention_config.get(
                 self.config["suggestion"]["format"], {}
             ).get("template"):
-                convention_guide += f"### Template:\n{template}\n\n"
+                convention_guide += f"### Template:\\n{template}\\n\\n"
             if example := convention_config.get(
                 self.config["suggestion"]["format"], {}
             ).get("example"):
-                convention_guide += f"### Example:\n{example}\n\n"
+                convention_guide += f"### Example:\\n{example}\\n\\n"
             if types := convention_config.get("types"):
-                convention_guide += f"### Available types:\n{', '.join(types)}\n\n"
+                convention_guide += f"### Available types:\\n{', '.join(types)}\\n\\n"
             if prefixes := convention_config.get("prefixes"):
-                convention_guide += f"### Available prefixes:\n{', '.join(prefixes)}\n\n"
+                convention_guide += (
+                    f"### Available prefixes:\\n{', '.join(prefixes)}\\n\\n"
+                )
             return convention_guide
         else:
             raise ValueError(f"No convention configuration found for {convention}")
@@ -144,14 +147,13 @@ class GitAICommit:
         prompt_expantion = {
             "multi-line": f"""The commit message should include:
 * A short summary (ideally {self.config["suggestion"]["max_length_per_line"]} characters or less)
-* A detailed description of the changes made
+* The reason for the change if you can describe it in a few words
 * References to any related issues or tickets, only if they're present and not already mentioned
 * Use single quotes inside the message, or escape double quotes with a backslash
 * You may mention what changed in each file, but don't repeat yourself
 * Max length per line is {self.config["suggestion"]["max_length_per_line"]} characters
 """,
-            "single-line": f"""The commit message should be on one line, concise, and ideally under {self.config["suggestion"]["max_length_per_line"]} characters.
-""",
+            "single-line": f"The commit message should be on one line, concise, and ideally under {self.config["suggestion"]["max_length_per_line"]} characters, and if possible it should describe the reason for the change.",
         }
         prompt = f"""As a Git commit message generator, analyze the staged changes below and generate a {format_type} git commit message following the {convention} format.  Your response must be in plain text, without any markdown formatting.
 
@@ -163,7 +165,7 @@ Do **not** use:
 - backticks
 - double quotes
 
-## Conventions
+## {convention} convention guide
 {convention_guide}
 
 ## Context
@@ -177,7 +179,6 @@ Email: {context.get('user_email', 'unknown')}
 {diff}
 ```
 """
-
         return prompt
 
     async def generate_suggestion(self) -> Optional[str]:
