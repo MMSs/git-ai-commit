@@ -111,6 +111,8 @@ class GitAICommit:
             "current_branch": self._run_git_command(
                 "rev-parse", "--abbrev-ref", "HEAD"
             ).strip(),
+            "file_structure": self._run_git_command("ls-tree", "--name-only", "-r", "HEAD").strip(),
+            "readme_content": self._run_git_command("show", "HEAD:README.md").strip(),
             "user_name": self._run_git_command("config", "user.name").strip(),
             "user_email": self._run_git_command("config", "user.email").strip(),
         }
@@ -147,15 +149,16 @@ class GitAICommit:
         prompt_expantion = {
             "multi-line": f"""The commit message should include:
 * A short summary (ideally {self.config["suggestion"]["max_length_per_line"]} characters or less)
-* The reason for the change if you can describe it in a few words
+* The reason for the change if you can be inferred from the context and changes
 * References to any related issues or tickets, only if they're present and not already mentioned
 * Use single quotes inside the message, or escape double quotes with a backslash
 * You may mention what changed in each file, but don't repeat yourself
 * Max length per line is {self.config["suggestion"]["max_length_per_line"]} characters
+* Don't limit yourself on the count of lines, you can use as many as you need to describe the changes
 """,
-            "single-line": f"The commit message should be on one line, concise, and ideally under {self.config["suggestion"]["max_length_per_line"]} characters, and if possible it should describe the reason for the change.",
+            "single-line": f"The commit message should be on one line, concise, and ideally under {self.config["suggestion"]["max_length_per_line"]} characters, and it should preferably describe the reason for the change, or if not possible, describe the changes.",
         }
-        prompt = f"""As a Git commit message generator, analyze the staged changes below and generate a {format_type} git commit message following the {convention} format.  Your response must be in plain text, without any markdown formatting.
+        prompt = f"""As a Git commit message generator, analyze the repository context, try to infer the framework or language of the project from the repository context, file structure, and README, and understand the purpose of the repository and whether it's a monorepo or not, and the changes you're about to commit, and generate a {format_type} git commit message following the {convention} format.  Your response must be in plain text, without any markdown formatting.
 
 {prompt_expantion[format_type]}
 
@@ -169,15 +172,27 @@ Do **not** use:
 {convention_guide}
 
 ## Context
-Repository: {context.get('repo_name', 'unknown')}
-Branch: {context.get('current_branch', 'unknown')}
-User: {context.get('user_name', 'unknown')}
-Email: {context.get('user_email', 'unknown')}
+### Repository:
+{context.get('repo_name', 'unknown')}
+### Branch:
+{context.get('current_branch', 'unknown')}
+### User:
+{context.get('user_name', 'unknown')}
+### Email:
+{context.get('user_email', 'unknown')}
+### File structure:
+````
+{context.get('file_structure', 'unavailable')}
+````
+### README file:
+````
+{context.get('readme_content', 'unavailable')}
+````
 
 ## Staged changes:
-```
+````
 {diff}
-```
+````
 """
         return prompt
 
