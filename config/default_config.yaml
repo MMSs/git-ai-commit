@@ -1,63 +1,60 @@
-suggestion:
-  mode: "fast"  # "fast" or "quality"
-  format: "single-line"  # "single-line" or "multi-line"
-  max_length: 72
-  convention: "conventional"  # "conventional", "gitmoji", "angular", "custom"
-
-commit_conventions:
-  current: "conventional"  # The active convention to use
-  conventions:
-    conventional:
-      types:
-        - feat
-        - fix
-        - docs
-        - style
-        - refactor
-        - test
-        - chore
-      prefixes: []
-      scopes: []  # Can be customized per project
-      template: ""  # Custom template
-
-    angular:
-      types:
-        - feat
-        - fix
-        - docs
-        - style
-        - refactor
-        - perf
-        - test
-        - build
-        - ci
-        - chore
-        - revert
-      prefixes: []
-      scopes: []
-      template: ""  # Custom template
-
-    gitmoji:
-      types: []
-      prefixes:
-        - "✨ feat:"     # Introduce new features
-        - "🐛 fix:"      # Fix a bug
-        - "📚 docs:"     # Documentation only changes
-        - "💄 style:"    # Features and updates related to styling
-        - "♻️ refactor:" # Code change that neither fixes a bug nor adds a feature
-        - "✅ test:"     # Adding missing tests
-        - "🔧 chore:"    # Changes to the build process or auxiliary tools
-      scopes: []
-      template: ""  # Custom template
-
-    custom:
-      types: []      # Can be customized
-      prefixes: []   # Can be customized
-      scopes: []     # Can be customized
-      template: ""   # Custom message template
-
-openai:
-  model: "gpt-4o-mini"
-  temperature: 0.7
-  max_tokens: 150
-  streaming: true
+{
+    "suggestion": {
+        "convention": "conventional",
+        "format": "multi-line",
+        "max_length_per_line": 72,
+    },
+    "openai": {
+        "model": "gpt-4o-mini",
+        "temperature": 0.7,
+        "max_tokens": 150,
+        "streaming": True,
+    },
+    "convention_configs": {
+        "conventional": {
+            "types": [
+                "feat",
+                "feat!",
+                "fix",
+                "fix!",
+                "docs",
+                "style",
+                "refactor",
+                "test",
+                "chore",
+                "perf",
+                "ci",
+                "build",
+                "revert",
+            ],
+            "scopes": [],
+            "single-line": {
+                "template": "<type>(<scope>): <description>",
+                "example": "feat(api): add user authentication feature",
+            },
+            "multi-line": {
+                "template": "<type>(<scope>): <description>\\n\\n<body>\\n\\n<footer>",
+                "example": "feat(api): add user authentication feature\\n\\n- Implemented user login and registration using JWT tokens.\\n- Added password hashing and validation.\\n- Updated user model to include authentication fields.\\n\\nFixes #123\\nSigned-off-by: John Doe <john.doe@example.com>",
+            },
+        },
+        "gitmoji": {
+            "prefixes": [
+                "✨ feat:",
+                "🐛 fix:",
+                "📚 docs:",
+                "💄 style:",
+                "♻️ refactor:",
+                "✅ test:",
+                "🔧 chore:",
+            ],
+            "single-line": {
+                "template": "<prefix>: <description>",
+                "example": "✨ feat: add user authentication feature",
+            },
+            "multi-line": {
+                "template": "<prefix>: <description>\\n\\n<body>\\n\\n<footer>",
+                "example": "✨ feat: add user authentication feature\\n\\n- Implemented user login and registration using JWT tokens.\\n- Added password hashing and validation.\\n- Updated user model to include authentication fields.\\n\\nFixes #123\\nSigned-off-by: John Doe <john.doe@example.com>",
+            },
+        },
+    },
+}
