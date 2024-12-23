@@ -2,13 +2,13 @@
     "suggestion": {
         "convention": "conventional",
         "format": "multi-line",
-        "max_length_per_line": 72,
+        "max_length_per_line": 72
     },
     "openai": {
         "model": "gpt-4o-mini",
         "temperature": 0.7,
         "max_tokens": 150,
-        "streaming": True,
+        "streaming": true
     },
     "convention_configs": {
         "conventional": {
@@ -25,17 +25,17 @@
                 "perf",
                 "ci",
                 "build",
-                "revert",
+                "revert"
             ],
             "scopes": [],
             "single-line": {
                 "template": "<type>(<scope>): <description>",
-                "example": "feat(api): add user authentication feature",
+                "example": "feat(api): add user authentication feature"
             },
             "multi-line": {
                 "template": "<type>(<scope>): <description>\n\n<body>\n\n<footer>",
-                "example": "feat(api): add user authentication feature\n\n- Implemented user login and registration using JWT tokens.\n- Added password hashing and validation.\n- Updated user model to include authentication fields.\n\nFixes #123\nSigned-off-by: John Doe <john.doe@example.com>",
-            },
+                "example": "feat(api): add user authentication feature\n\n- Implemented user login and registration using JWT tokens.\n- Added password hashing and validation.\n- Updated user model to include authentication fields.\n\nFixes #123\nSigned-off-by: John Doe <john.doe@example.com>"
+            }
         },
         "gitmoji": {
             "prefixes": [
@@ -45,16 +45,16 @@
                 "💄 style:",
                 "♻️ refactor:",
                 "✅ test:",
-                "🔧 chore:",
+                "🔧 chore:"
             ],
             "single-line": {
                 "template": "<prefix>: <description>",
-                "example": "✨ feat: add user authentication feature",
+                "example": "✨ feat: add user authentication feature"
             },
             "multi-line": {
                 "template": "<prefix>: <description>\n\n<body>\n\n<footer>",
-                "example": "✨ feat: add user authentication feature\n\n- Implemented user login and registration using JWT tokens.\n- Added password hashing and validation.\n- Updated user model to include authentication fields.\n\nFixes #123\nSigned-off-by: John Doe <john.doe@example.com>",
-            },
-        },
-    },
+                "example": "✨ feat: add user authentication feature\n\n- Implemented user login and registration using JWT tokens.\n- Added password hashing and validation.\n- Updated user model to include authentication fields.\n\nFixes #123\nSigned-off-by: John Doe <john.doe@example.com>"
+            }
+        }
+    }
 }
