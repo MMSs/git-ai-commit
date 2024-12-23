@@ -24,17 +24,6 @@ _git_ai_commit_ensure_venv() {
 # Initialize the plugin
 _git_ai_commit_ensure_venv
 
-# Main function to run the commit script
-git-ai-commit() {
-    local venv_dir="${PLUGIN_DIR}/.venv"
-    source "$venv_dir/bin/activate"
-    # Run Python script from src directory
-    python3 "${PLUGIN_DIR}/src/git_ai_commit.py" "$@"
-    local exit_status=$?
-    deactivate
-    return $exit_status
-}
-
 # Function to handle git commit message generation
 _gcommit() {
     local cmd=$BUFFER
@@ -53,6 +42,17 @@ _gcommit() {
             zle autosuggest-disable
         fi
 
+        # Animate the loading dots until the message is generated
+        message="Generating commit message"
+        for ((i=0; i<${#message}; i++)); do
+            echo -n "${message:$i:1}"
+            sleep 0.01
+        done
+        for i in {1..3}; do
+            sleep 0.5
+            echo -n "."
+        done
+
         # Generate commit message with streaming output
         local venv_dir="${PLUGIN_DIR}/.venv"
         source "$venv_dir/bin/activate"
@@ -61,10 +61,22 @@ _gcommit() {
 
         # If we got a suggestion, update the command line
         if [[ $? -eq 0 && -n "$suggestion" ]]; then
+            # surround the suggestion with quotes
+            suggestion=" \"$suggestion\""
             # Restore the prompt
             zle reset-prompt
-            BUFFER="$BUFFER\"$suggestion\""
+            # remove trailing whitespace from BUFFER
+            BUFFER="${BUFFER%% }"
+            # animate the suggestion
+            for ((i=0; i<${#suggestion}; i++)); do
+                echo -n "${suggestion:$i:1}"
+                sleep 0.01
+            done
+            zle reset-prompt
+            BUFFER="$BUFFER$suggestion"
             CURSOR=${#BUFFER}
+        else
+            echo "Failed to generate commit message"
         fi
     else
         zle expand-or-complete
@@ -79,6 +91,3 @@ _gcommit() {
 # Register the widget and bind the key
 zle -N _gcommit
 bindkey "^I" _gcommit
-
-# Add completion for the command (optional)
-compdef _git git-ai-commit
