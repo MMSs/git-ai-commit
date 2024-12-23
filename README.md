@@ -23,7 +23,7 @@ Just stage your changes and type `git commit -m` (or any alias for it) and hit T
 1. Clone this repository in Oh My Zsh's plugins directory:
 
 ```bash
-git clone https://github.com/yourusername/git-ai-commit.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/git-ai-commit
+git clone https://github.com/MMSs/git-ai-commit.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/git-ai-commit
 ```
 
 2. Add the plugin to your Oh My Zsh configuration. Open your `.zshrc` and add `git-ai-commit` to your plugins:
