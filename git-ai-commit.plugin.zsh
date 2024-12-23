@@ -42,6 +42,7 @@ _gcommit() {
     if a=$(alias ${BUFFER%% *} 2>/dev/null); then
         cmd=${a#*=}
         cmd=${cmd//\'/}
+        cmd=${cmd//\"/}
         cmd="$cmd "
     fi
 
@@ -51,9 +52,6 @@ _gcommit() {
         if zle -l | grep -q autosuggest-disable; then
             zle autosuggest-disable
         fi
-
-        # Clear the current line to show streaming output
-        echo
 
         # Generate commit message with streaming output
         local venv_dir="${PLUGIN_DIR}/.venv"
