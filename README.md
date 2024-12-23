@@ -5,8 +5,8 @@ An AI-powered Git commit message generator Oh My Zsh plugin that provides intell
 ## Features
 
 - 🤖 Uses GPT-4o to generate contextual commit messages
-- 🚀 Fast, streaming suggestions
-- 🎯 Supports conventional commit format
+- 🚀 Fast, streaming suggestions _(under development)_
+- 🎯 Supports conventional commit format, gitmoji, and your own custom formats
 - ⚙️ Configurable for both global and project-specific settings
 - 🔌 Native Oh My Zsh integration
 
