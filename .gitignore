@@ -2,43 +2,26 @@
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+.venv/
 
-# Virtual Environment
-.env
-.venv
-env/
-venv/
-ENV/
+# Oh My Zsh plugin specific
+*.zwc
+*.zwc.old
 
 # IDE
-.idea/
 .vscode/
+.idea/
 *.swp
 *.swo
 
-# OS
+# Logs
+.logs/
+*.log
+
+# Config
+.git-ai-commit.json
+
+# OS specific
 .DS_Store
 Thumbs.db
-
-# Project specific
-*.log
-.coverage
-htmlcov/
-.git-ai-commit.json

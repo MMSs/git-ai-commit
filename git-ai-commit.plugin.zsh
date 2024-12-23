@@ -28,8 +28,8 @@ _git_ai_commit_ensure_venv
 git-ai-commit() {
     local venv_dir="${PLUGIN_DIR}/.venv"
     source "$venv_dir/bin/activate"
-    # Run Python script directly to allow streaming
-    python3 "${PLUGIN_DIR}/git_ai_commit.py" "$@"
+    # Run Python script from src directory
+    python3 "${PLUGIN_DIR}/src/git_ai_commit.py" "$@"
     local exit_status=$?
     deactivate
     return $exit_status
@@ -58,7 +58,7 @@ _gcommit() {
         # Generate commit message with streaming output
         local venv_dir="${PLUGIN_DIR}/.venv"
         source "$venv_dir/bin/activate"
-        local suggestion=$(python3 "${PLUGIN_DIR}/git_ai_commit.py")
+        local suggestion=$(python3 "${PLUGIN_DIR}/src/git_ai_commit.py")
         deactivate
 
         # If we got a suggestion, update the command line
