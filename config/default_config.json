@@ -33,8 +33,8 @@
                 "example": "feat(api): add user authentication feature",
             },
             "multi-line": {
-                "template": "<type>(<scope>): <description>\\n\\n<body>\\n\\n<footer>",
-                "example": "feat(api): add user authentication feature\\n\\n- Implemented user login and registration using JWT tokens.\\n- Added password hashing and validation.\\n- Updated user model to include authentication fields.\\n\\nFixes #123\\nSigned-off-by: John Doe <john.doe@example.com>",
+                "template": "<type>(<scope>): <description>\n\n<body>\n\n<footer>",
+                "example": "feat(api): add user authentication feature\n\n- Implemented user login and registration using JWT tokens.\n- Added password hashing and validation.\n- Updated user model to include authentication fields.\n\nFixes #123\nSigned-off-by: John Doe <john.doe@example.com>",
             },
         },
         "gitmoji": {
@@ -52,8 +52,8 @@
                 "example": "✨ feat: add user authentication feature",
             },
             "multi-line": {
-                "template": "<prefix>: <description>\\n\\n<body>\\n\\n<footer>",
-                "example": "✨ feat: add user authentication feature\\n\\n- Implemented user login and registration using JWT tokens.\\n- Added password hashing and validation.\\n- Updated user model to include authentication fields.\\n\\nFixes #123\\nSigned-off-by: John Doe <john.doe@example.com>",
+                "template": "<prefix>: <description>\n\n<body>\n\n<footer>",
+                "example": "✨ feat: add user authentication feature\n\n- Implemented user login and registration using JWT tokens.\n- Added password hashing and validation.\n- Updated user model to include authentication fields.\n\nFixes #123\nSigned-off-by: John Doe <john.doe@example.com>",
             },
         },
     },
