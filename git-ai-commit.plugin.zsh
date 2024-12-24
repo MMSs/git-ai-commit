@@ -42,38 +42,43 @@ _gcommit() {
             zle autosuggest-disable
         fi
 
+        # Save current buffer
+        local original_buffer=$BUFFER
+
         # Generate commit message with streaming output
         local venv_dir="${PLUGIN_DIR}/.venv"
         source "$venv_dir/bin/activate"
-        local suggestion=$(python3 "${PLUGIN_DIR}/src/git_ai_commit.py")
+
+        # Create a temporary file to store the final message
+        local temp_file=$(mktemp)
+
+        # Run Python script and show streaming output while capturing message
+        python3 "${PLUGIN_DIR}/src/git_ai_commit.py" | tee "$temp_file"
+        local exit_status=$?
+        local suggestion=$(cat "$temp_file")
+        rm "$temp_file"
+
         deactivate
 
         # If we got a suggestion, update the command line
-        if [[ $? -eq 0 && -n "$suggestion" ]]; then
+        if [[ $exit_status -eq 0 && -n "$suggestion" ]]; then
             # surround the suggestion with quotes
             suggestion=" \"$suggestion\""
-            # Restore the prompt
+            # Restore the original command and add the suggestion
             zle reset-prompt
-            # remove trailing whitespace from BUFFER
-            BUFFER="${BUFFER%% }"
-            # animate the suggestion
-            for ((i=0; i<${#suggestion}; i++)); do
-                echo -n "${suggestion:$i:1}"
-                sleep 0.01
-            done
-            zle reset-prompt
-            BUFFER="$BUFFER$suggestion"
+            BUFFER="${original_buffer%% }$suggestion"
             CURSOR=${#BUFFER}
         else
             echo "Failed to generate commit message"
+            BUFFER=$original_buffer
+        fi
+
+        # Re-enable autosuggestions if necessary
+        if zle -l | grep -q autosuggest-enable; then
+            zle autosuggest-enable
         fi
     else
         zle expand-or-complete
-    fi
-
-    # Re-enable autosuggestions if necessary
-    if zle -l | grep -q autosuggest-enable; then
-        zle autosuggest-enable
     fi
 }
 

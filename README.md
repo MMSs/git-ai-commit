@@ -7,7 +7,7 @@ Just stage your changes and type `git commit -m` (or any alias for it) and hit T
 ## Features
 
 - 🤖 Uses GPT-4o to generate contextual commit messages
-- 🚀 Fast, streaming suggestions _(under development)_
+- 🚀 Fast, streaming suggestions
 - 🎯 Supports conventional commit format, gitmoji, and your own custom formats
 - ⚙️ Configurable for both global and project-specific settings
 - 🔌 Native Oh My Zsh integration
