@@ -44,6 +44,8 @@ export OPENAI_API_KEY='your-api-key-here'
 source ~/.zshrc
 ```
 
+To update the plugin, run `git -C ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/git-ai-commit pull` then restart your terminal or reload Oh My Zsh as described in step 4.
+
 ## Configuration
 
 The configuration file is located at `~/.config/git-ai-commit/config.json`. You can also create a project-specific configuration by adding a `.git-ai-commit.json` file to your project root.
