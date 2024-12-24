@@ -42,17 +42,6 @@ _gcommit() {
             zle autosuggest-disable
         fi
 
-        # Animate the loading dots until the message is generated
-        message="Generating commit message"
-        for ((i=0; i<${#message}; i++)); do
-            echo -n "${message:$i:1}"
-            sleep 0.01
-        done
-        for i in {1..3}; do
-            sleep 0.5
-            echo -n "."
-        done
-
         # Generate commit message with streaming output
         local venv_dir="${PLUGIN_DIR}/.venv"
         source "$venv_dir/bin/activate"
