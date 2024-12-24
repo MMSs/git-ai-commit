@@ -1,5 +1,5 @@
 # Check if Python is installed
-if ! command -v python3 &> /dev/null; then
+if ! command -v python3 &>/dev/null; then
     echo "Python 3 is required but not installed. Please install Python 3 first."
     return 1
 fi
@@ -35,45 +35,36 @@ _gcommit() {
         cmd="$cmd "
     fi
 
-    # Check if the command is a git commit with -m/--message flag
-    if [[ $cmd =~ ^git\ commit.*(-m|--message)\  && $BUFFER =~ ^[^\"]*$ ]]; then
-        # Handle autosuggestions
+    # Check if the command is a git commit with -m/--message flag and doesn't already have a complete message
+    if [[ $cmd =~ ^git\ commit.*(-m|--message)\  && ! $BUFFER =~ \".*\" ]]; then
+        # Disable autosuggestions temporarily to avoid conflicts
         if zle -l | grep -q autosuggest-disable; then
             zle autosuggest-disable
         fi
 
-        # Save current buffer
-        local original_buffer=$BUFFER
+        # Save current buffer and remove any trailing space
+        local original_buffer=${BUFFER%% }
 
         # Generate commit message with streaming output
-        local venv_dir="${PLUGIN_DIR}/.venv"
-        source "$venv_dir/bin/activate"
-
-        # Create a temporary file to store the final message
+        source "${PLUGIN_DIR}/.venv/bin/activate"
         local temp_file=$(mktemp)
-
-        # Run Python script and show streaming output while capturing message
         python3 "${PLUGIN_DIR}/src/git_ai_commit.py" | tee "$temp_file"
         local exit_status=$?
         local suggestion=$(cat "$temp_file")
         rm "$temp_file"
-
         deactivate
 
         # If we got a suggestion, update the command line
-        if [[ $exit_status -eq 0 && -n "$suggestion" ]]; then
-            # surround the suggestion with quotes
-            suggestion=" \"$suggestion\""
-            # Restore the original command and add the suggestion
+        if [[ $exit_status -eq 0 || -n "$suggestion" ]]; then
             zle reset-prompt
-            BUFFER="${original_buffer%% }$suggestion"
+            BUFFER="${original_buffer}${suggestion}"
             CURSOR=${#BUFFER}
         else
-            echo "Failed to generate commit message"
+            echo "Failed to generate commit message" >&2
             BUFFER=$original_buffer
         fi
 
-        # Re-enable autosuggestions if necessary
+        # Re-enable autosuggestions if available
         if zle -l | grep -q autosuggest-enable; then
             zle autosuggest-enable
         fi

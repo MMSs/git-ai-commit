@@ -4,6 +4,7 @@ import os
 import subprocess
 from pathlib import Path
 from typing import Dict, Optional
+import sys
 
 from openai import AsyncOpenAI
 
@@ -221,16 +222,17 @@ Do **not** use:
             )
 
             suggestion = ""
+            print(' "', end="", flush=True)  # Print opening quote
             async for chunk in response:
                 content = chunk.choices[0].delta.content
                 if content:
                     suggestion += content
                     print(content, end="", flush=True)
-            print()
+            print('"')  # Print closing quote
             return suggestion
 
         except Exception as e:
-            print(f"Error: {str(e)}")
+            print(f"Error: {str(e)}", file=sys.stderr)
             return None
 
 
