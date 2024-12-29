@@ -77,6 +77,11 @@ git add .
 
 3. If you didn't like the suggestion, delete the message and hit TAB again to generate a new suggestion
 
+## Known issues
+
+- The plugin doesn't work with `git commit -am` or `git commit -a -m`, you need to stage your changes first.
+- If you're using mult-line format, you will see the message twice, this is due to limitation of zsh prompt-reset that resets only the last line of the prompt.
+
 ## License
 
 MIT License
