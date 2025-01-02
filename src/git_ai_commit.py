@@ -104,7 +104,7 @@ class GitAICommit:
         return Path(self._get_repo_path()).name.strip()
 
     def get_staged_changes(self) -> Optional[str]:
-        return self._run_git_command("diff", "--cached", "--unified=3")
+        return self._run_git_command("diff", "--cached", "--unified=10")
 
     def get_repo_context(self) -> Dict[str, str]:
         return {
