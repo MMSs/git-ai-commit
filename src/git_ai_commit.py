@@ -156,6 +156,7 @@ class GitAICommit:
 * You may mention what changed in each file, but don't repeat yourself
 * Max length per line is {self.config["suggestion"]["max_length_per_line"]} characters
 * Don't limit yourself on the count of lines, you can use as many as you need to describe the changes
+* If the changes are too few, you can use the single-line format
 """,
             "single-line": f"The commit message should be on one line, concise, and ideally under {self.config["suggestion"]["max_length_per_line"]} characters, and it should preferably describe the reason for the change, or if not possible, describe the changes.",
         }
