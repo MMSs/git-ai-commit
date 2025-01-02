@@ -113,7 +113,7 @@ class GitAICommit:
                 "rev-parse", "--abbrev-ref", "HEAD"
             ).strip(),
             "file_structure": self._run_git_command("ls-tree", "--name-only", "-r", "HEAD").strip(),
-            "readme_content": self._run_git_command("show", "HEAD:README.md").strip(),
+            "readme_content": self._run_git_command("show", "HEAD:README.md").strip() if Path(self._get_repo_path() / "README.md").exists() else "unavailable",
             "user_name": self._run_git_command("config", "user.name").strip(),
             "user_email": self._run_git_command("config", "user.email").strip(),
         }
