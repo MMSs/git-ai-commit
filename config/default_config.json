@@ -1,11 +1,12 @@
 {
+    "_comment_models": "Popular OpenAI models you can use: gpt-5-nano (fastest/cheapest), gpt-5-mini (balanced), gpt-5.2 (most capable), gpt-4.1 (previous gen), gpt-4.1-nano (cheaper previous gen). All support streaming.",
     "suggestion": {
         "convention": "conventional",
         "format": "multi-line",
         "max_length_per_line": 72
     },
     "openai": {
-        "model": "gpt-4o-mini",
+        "model": "gpt-5-nano",
         "temperature": 0.7,
         "max_tokens": 150,
         "streaming": true
