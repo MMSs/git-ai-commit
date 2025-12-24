@@ -112,8 +112,12 @@ class GitAICommit:
             "current_branch": self._run_git_command(
                 "rev-parse", "--abbrev-ref", "HEAD"
             ).strip(),
-            "file_structure": self._run_git_command("ls-tree", "--name-only", "-r", "HEAD").strip(),
-            "readme_content": self._run_git_command("show", "HEAD:README.md").strip() if Path(self._get_repo_path() / "README.md").exists() else "unavailable",
+            "file_structure": self._run_git_command(
+                "ls-tree", "--name-only", "-r", "HEAD"
+            ).strip(),
+            "readme_content": self._run_git_command("show", "HEAD:README.md").strip()
+            if Path(self._get_repo_path() / "README.md").exists()
+            else "unavailable",
             "user_name": self._run_git_command("config", "user.name").strip(),
             "user_email": self._run_git_command("config", "user.email").strip(),
         }
@@ -134,14 +138,16 @@ class GitAICommit:
             ).get("example"):
                 convention_guide += f"### Example:\\n{example}\\n\\n"
             if types := convention_config.get("types"):
-                convention_guide += f"### Available types:\\n{', '.join(types)}\\n\\n"
+                convention_guide += f"### Available types:\\n{
+                    ', '.join(types)}\\n\\n"
             if prefixes := convention_config.get("prefixes"):
                 convention_guide += (
                     f"### Available prefixes:\\n{', '.join(prefixes)}\\n\\n"
                 )
             return convention_guide
         else:
-            raise ValueError(f"No convention configuration found for {convention}")
+            raise ValueError(
+                f"No convention configuration found for {convention}")
 
     def _build_prompt(self, diff: str, context: Dict[str, str]) -> str:
         convention = self.config["suggestion"]["convention"]
@@ -158,7 +164,7 @@ class GitAICommit:
 * Don't limit yourself on the count of lines, you can use as many as you need to describe the changes
 * If the changes are too few, you can use the single-line format
 """,
-            "single-line": f"The commit message should be on one line, concise, and ideally under {self.config["suggestion"]["max_length_per_line"]} characters, and it should preferably describe the reason for the change, or if not possible, describe the changes.",
+            "single-line": f"The commit message should be on one line, concise, and ideally under {self.config['suggestion']['max_length_per_line']} characters, and it should preferably describe the reason for the change, or if not possible, describe the changes.",
         }
         prompt = f"""As a Git commit message generator, analyze the repository context, try to infer the framework or language of the project from the repository context, file structure, and README, and understand the purpose of the repository and whether it's a monorepo or not, and the changes you're about to commit, and generate a {format_type} git commit message following the {convention} format.  Your response must be in plain text, without any markdown formatting.
 
@@ -175,20 +181,20 @@ Do **not** use:
 
 ## Context
 ### Repository:
-{context.get('repo_name', 'unknown')}
+{context.get("repo_name", "unknown")}
 ### Branch:
-{context.get('current_branch', 'unknown')}
+{context.get("current_branch", "unknown")}
 ### User:
-{context.get('user_name', 'unknown')}
+{context.get("user_name", "unknown")}
 ### Email:
-{context.get('user_email', 'unknown')}
+{context.get("user_email", "unknown")}
 ### File structure:
 ````
-{context.get('file_structure', 'unavailable')}
+{context.get("file_structure", "unavailable")}
 ````
 ### README file:
 ````
-{context.get('readme_content', 'unavailable')}
+{context.get("readme_content", "unavailable")}
 ````
 
 ## Staged changes:

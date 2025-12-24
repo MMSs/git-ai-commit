@@ -1,8 +1,11 @@
 # Git AI Commit
 
-An AI-powered Git commit message generator Oh My Zsh plugin that provides intelligent suggestions based on your staged changes, and itegrates seamlessly with your existing git workflow.
+An AI-powered Git commit message generator Oh My Zsh plugin that provides
+intelligent suggestions based on your staged changes, and integrates seamlessly
+with your existing git workflow.
 
-Just stage your changes and type `git commit -m` (or any alias for it) and hit TAB to generate a commit message.
+Just stage your changes and type `git commit -m` (or any alias for it) and hit
+TAB to generate a commit message.
 
 ## Features
 
@@ -69,6 +72,7 @@ The configuration file is located at `~/.config/git-ai-commit/config.json`. You 
 ## Usage
 
 1. Stage your changes:
+
 ```bash
 git add .
 ```
