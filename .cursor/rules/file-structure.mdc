@@ -1,0 +1,18 @@
+---
+description: Project file structure and directory tree
+globs: []
+alwaysApply: true
+---
+
+# File Structure
+
+```
+ai-commit-msg/
+├── config/
+│   └── default_config.json    # Reference configuration file
+├── src/
+│   └── git_ai_commit.py       # Main Python script (core logic)
+├── git-ai-commit.plugin.zsh   # Zsh plugin entry point
+├── LICENSE                    # MIT License
+└── README.md                  # User documentation
+```

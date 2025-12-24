@@ -1,0 +1,16 @@
+---
+description: Git AI Commit project overview and key characteristics
+globs: []
+alwaysApply: true
+---
+
+# Git AI Commit - Project Overview
+
+**Git AI Commit** is an Oh My Zsh plugin that generates AI-powered Git commit messages using OpenAI's GPT models. It intercepts the `git commit -m` command on TAB key press, analyzes staged changes and repository context, then streams a commit message suggestion directly into the command line.
+
+## Key Characteristics
+
+- **Language**: Python 3.11+ (core logic) + Zsh (shell integration)
+- **AI Provider**: OpenAI API (GPT-4o-mini by default)
+- **Integration**: Oh My Zsh plugin system
+- **Commit Formats**: Conventional Commits, Gitmoji, or custom formats

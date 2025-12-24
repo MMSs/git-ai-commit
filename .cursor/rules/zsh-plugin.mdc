@@ -1,0 +1,31 @@
+---
+description: Documentation for git-ai-commit.plugin.zsh
+globs: ["*.zsh"]
+alwaysApply: false
+---
+
+# git-ai-commit.plugin.zsh
+
+**Purpose**: Oh My Zsh plugin entry point that handles shell integration and keyboard binding.
+
+## Key Components
+
+| Function/Variable | Description |
+|-------------------|-------------|
+| `PLUGIN_DIR` | Resolves to the absolute path of the plugin directory |
+| `_git_ai_commit_ensure_venv()` | Creates a Python virtualenv in `.venv/` and installs `openai` package if not already set up |
+| `_gcommit()` | Main widget function bound to TAB key; intercepts `git commit -m` commands |
+
+## Behavior Flow
+
+1. On plugin load: Ensures virtualenv exists with `openai` installed
+2. On TAB press:
+   - Checks if current command is `git commit -m` (or alias) without a complete message
+   - Disables zsh-autosuggestions temporarily
+   - Activates virtualenv and runs `git_ai_commit.py`
+   - Streams output and appends generated message to command buffer
+   - Re-enables autosuggestions
+
+## Key Binding
+
+`^I` (TAB) → `_gcommit` widget

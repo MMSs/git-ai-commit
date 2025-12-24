@@ -1,0 +1,42 @@
+---
+description: LLM prompt construction and engineering details
+globs: ["src/**/*.py"]
+alwaysApply: false
+---
+
+# Prompt Engineering
+
+The LLM prompt is constructed in the `_build_prompt()` method and includes multiple sections to provide comprehensive context to the AI model.
+
+## Prompt Structure
+
+1. **System message**: Role definition as a Git commit message generator specializing in conventional commits and gitmoji formats
+
+2. **User message** composed of:
+   - Format-specific instructions (single-line vs multi-line)
+   - Convention guide (template, example, available types)
+   - Repository context (name, branch, user, file structure, README)
+   - Staged changes diff
+
+## Constraints Enforced in Prompt
+
+The prompt explicitly instructs the model to:
+- **Avoid** markdown formatting, code blocks, or backticks
+- **Avoid** double quotes (use single quotes or escape)
+- Enforce max line length (configurable, default 72 characters)
+- Reference issues only if mentioned in changes
+- Infer project framework/language from context
+- Understand if repository is a monorepo
+
+## Format-Specific Instructions
+
+### Multi-line Format
+- Short summary (≤ max_length_per_line)
+- Reason for change (inferred from context)
+- Issue/ticket references (if present)
+- Per-file change descriptions (without repetition)
+- No limit on line count
+
+### Single-line Format
+- Concise message under max_length_per_line
+- Prioritize reason over description of changes
