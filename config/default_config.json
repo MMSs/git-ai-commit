@@ -10,6 +10,25 @@
         "max_tokens": 150,
         "streaming": true
     },
+    "context": {
+        "max_input_tokens": 6000,
+        "include_commit_history": true,
+        "commit_history_count": 5,
+        "smart_file_filtering": true,
+        "readme_excerpt_lines": 30,
+        "detect_tech_stack": true,
+        "analyze_branch_name": true
+    },
+    "diff_analysis": {
+        "extract_functions": true,
+        "extract_imports": true,
+        "summarize_stats": true
+    },
+    "caching": {
+        "cache_ttl_minutes": 5,
+        "enable_api_prompt_caching": true,
+        "enable_local_caching": true
+    },
     "convention_configs": {
         "conventional": {
             "types": [
