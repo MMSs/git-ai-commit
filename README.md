@@ -81,6 +81,91 @@ git add .
 
 3. If you didn't like the suggestion, delete the message and hit TAB again to generate a new suggestion
 
+## Lazygit Integration
+
+You can integrate Git AI Commit with [lazygit](https://github.com/jesseduffield/lazygit) to automatically generate AI-powered commit messages when you commit.
+
+### Setup
+
+This integration uses a Git hook that automatically generates the commit message when you press `c` to commit in lazygit.
+
+1. Create a prepare-commit-msg hook in your repository at `.git/hooks/prepare-commit-msg`:
+
+```bash
+#!/bin/bash
+COMMIT_MSG_FILE=$1
+COMMIT_SOURCE=$2
+
+# Only generate for new commits (not amend, merge, etc.)
+if [ -z "$COMMIT_SOURCE" ]; then
+    # Check if commit message is empty
+    if [ ! -s "$COMMIT_MSG_FILE" ]; then
+        PLUGIN_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/git-ai-commit"
+
+        # Check if we have staged changes
+        if ! git diff --cached --quiet; then
+            # Generate AI commit message
+            source "$PLUGIN_DIR/.venv/bin/activate"
+            MSG=$(python3 "$PLUGIN_DIR/src/git_ai_commit.py" 2>/dev/null | sed 's/^ "//;s/"$//')
+            deactivate
+
+            # Write the message if generation succeeded
+            if [ -n "$MSG" ]; then
+                echo "$MSG" > "$COMMIT_MSG_FILE"
+            fi
+        fi
+    fi
+fi
+```
+
+2. Make the hook executable:
+
+```bash
+chmod +x .git/hooks/prepare-commit-msg
+```
+
+### Usage in Lazygit
+
+1. Open lazygit in your repository: `lazygit`
+2. Stage your changes using the `space` key
+3. Press `c` to commit
+4. The AI will automatically generate a commit message and populate the editor
+5. Review and edit the message if needed
+6. Save and close the editor to complete the commit
+
+### Notes
+
+- The AI generation happens automatically when you press `c` to commit
+- The generation may take a few seconds depending on the size of your changes
+- You can still edit the generated message before finalizing the commit
+- The hook only runs for new commits (not for amend, merge commits, etc.)
+- The same configuration options from `~/.config/git-ai-commit/config.json` apply
+- You'll need to set up this hook for each repository where you want to use it
+
+### Optional: Global Hook Setup
+
+If you want this to work automatically in all your repositories (requires Git 2.9+):
+
+1. Create a global hooks directory:
+
+```bash
+mkdir -p ~/.config/git/hooks
+```
+
+2. Create `~/.config/git/hooks/prepare-commit-msg` with the same content as above and make it executable:
+
+```bash
+chmod +x ~/.config/git/hooks/prepare-commit-msg
+```
+
+3. Configure Git to use this hooks directory (this modifies your `~/.gitconfig`):
+
+```bash
+git config --global core.hooksPath ~/.config/git/hooks
+```
+
+This immediately applies to all your existing and new repositories without needing to run any additional commands.
+
 ## Known issues
 
 - The plugin doesn't work with `git commit -am` or `git commit -a -m`, you need to stage your changes first.
