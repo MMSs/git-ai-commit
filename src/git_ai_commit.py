@@ -145,10 +145,9 @@ DEFAULT_CONFIG = {
         "max_length_per_line": 72,
     },
     "openai": {
-        "model": "gpt-4o-mini",
+        "model": "gpt-5-nano",
         "temperature": 0.7,
-        "max_tokens": 150,
-        "streaming": True,
+        "max_tokens": 1000,
     },
     "context": {
         "max_input_tokens": 6000,
@@ -1022,31 +1021,33 @@ Do NOT use: markdown, code blocks, backticks, or double quotes.
                 system_prompt = "You are a Git commit message generator specializing in conventional commits and gitmoji formats."
                 user_prompt = self._build_prompt(diff, self.get_repo_context())
 
-            response = await self.client.chat.completions.create(
-                model=self.config["openai"]["model"],
-                messages=[
-                    {
-                        "role": "system",
-                        "content": system_prompt,
-                    },
-                    {
-                        "role": "user",
-                        "content": user_prompt,
-                    },
+            # Build API parameters
+            model = self.config["openai"]["model"]
+            api_params: Dict[str, Any] = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
                 ],
-                temperature=self.config["openai"]["temperature"],
-                max_tokens=self.config["openai"]["max_tokens"],
-                stream=self.config["openai"]["streaming"],
-            )
+            }
 
-            suggestion = ""
-            print(' "', end="", flush=True)  # Print opening quote
-            async for chunk in response:
-                content = chunk.choices[0].delta.content
-                if content:
-                    suggestion += content
-                    print(content, end="", flush=True)
-            print('"')  # Print closing quote
+            # Handle max tokens parameter (newer models use max_completion_tokens)
+            max_tokens = self.config["openai"].get("max_completion_tokens") or \
+                         self.config["openai"].get("max_tokens", 150)
+            api_params["max_completion_tokens"] = max_tokens
+
+            # Some models don't support custom temperature
+            # - Reasoning models (o1, o3, o4): no temperature support
+            # - GPT-5 series: only default (1) supported
+            no_temp_models = ("o1", "o3", "o4", "gpt-5")
+            if not any(model.startswith(prefix) for prefix in no_temp_models):
+                api_params["temperature"] = self.config["openai"].get("temperature", 0.7)
+
+            response = await self.client.chat.completions.create(**api_params)
+
+            suggestion = response.choices[0].message.content or ""
+            print(f' "{suggestion}"')
+
             return suggestion
 
         except Exception as e:

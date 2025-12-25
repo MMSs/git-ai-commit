@@ -14,10 +14,20 @@ _git_ai_commit_ensure_venv() {
     # Create virtualenv if it doesn't exist
     if [[ ! -d "$venv_dir" ]]; then
         echo "Setting up git-ai-commit environment..."
-        python3 -m venv "$venv_dir"
-        source "$venv_dir/bin/activate"
-        pip install openai
-        deactivate
+
+        # Check if uv is available and prefer it
+        if command -v uv &>/dev/null; then
+            echo "Using uv to install dependencies..."
+            cd "$PLUGIN_DIR"
+            uv sync --no-dev
+            cd - > /dev/null
+        else
+            echo "Using standard pip (consider installing uv for faster setup: https://github.com/astral-sh/uv)"
+            python3 -m venv "$venv_dir"
+            source "$venv_dir/bin/activate"
+            pip install .
+            deactivate
+        fi
     fi
 }
 
@@ -46,13 +56,24 @@ _gcommit() {
         local original_buffer=${BUFFER%% }
 
         # Generate commit message with streaming output
-        source "${PLUGIN_DIR}/.venv/bin/activate"
         local temp_file=$(mktemp)
-        python3 "${PLUGIN_DIR}/src/git_ai_commit.py" | tee "$temp_file"
-        local exit_status=$?
+        local exit_status
+
+        # Use uv run if uv is available and venv exists, otherwise use traditional activation
+        if command -v uv &>/dev/null && [[ -d "${PLUGIN_DIR}/.venv" ]]; then
+            cd "$PLUGIN_DIR"
+            uv run python src/git_ai_commit.py | tee "$temp_file"
+            exit_status=$?
+            cd - > /dev/null
+        else
+            source "${PLUGIN_DIR}/.venv/bin/activate"
+            python3 "${PLUGIN_DIR}/src/git_ai_commit.py" | tee "$temp_file"
+            exit_status=$?
+            deactivate
+        fi
+
         local suggestion=$(cat "$temp_file")
         rm "$temp_file"
-        deactivate
 
         # If we got a suggestion, update the command line
         if [[ $exit_status -eq 0 || -n "$suggestion" ]]; then

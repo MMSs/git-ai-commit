@@ -19,35 +19,66 @@ TAB to generate a commit message.
 
 - [Oh My Zsh](https://ohmyz.sh/) installed
 - Python 3.11 or higher
+- [uv](https://github.com/astral-sh/uv) - Fast Python package installer (recommended)
 - OpenAI API key
 
 ## Installation
 
-1. Clone this repository in Oh My Zsh's plugins directory:
+### Quick Install (Recommended)
+
+1. Install `uv` if you haven't already:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+2. Clone this repository in Oh My Zsh's plugins directory:
 
 ```bash
 git clone https://github.com/MMSs/git-ai-commit.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/git-ai-commit
 ```
 
-2. Add the plugin to your Oh My Zsh configuration. Open your `.zshrc` and add `git-ai-commit` to your plugins:
+3. Install dependencies using `uv`:
+
+```bash
+cd ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/git-ai-commit
+uv sync --no-dev
+```
+
+4. Add the plugin to your Oh My Zsh configuration. Open your `.zshrc` and add `git-ai-commit` to your plugins:
 
 ```bash
 plugins=(... git-ai-commit)
 ```
 
-3. Set your OpenAI API key in your `.zshrc`:
+5. Set your OpenAI API key in your `.zshrc`:
 
 ```bash
 export OPENAI_API_KEY='your-api-key-here'
 ```
 
-4. Restart your terminal or reload Oh My Zsh:
+6. Restart your terminal or reload Oh My Zsh:
 
 ```bash
 source ~/.zshrc
 ```
 
-To update the plugin, run `git -C ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/git-ai-commit pull` then restart your terminal or reload Oh My Zsh as described in step 4.
+### Alternative: Traditional Installation
+
+If you prefer not to use `uv`, the plugin will automatically create a virtual environment using Python's built-in `venv` and install dependencies with `pip` on first use. Just follow steps 2, 4, 5, and 6 above.
+
+### Updating
+
+To update the plugin:
+
+```bash
+cd ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/git-ai-commit
+git pull
+# Update dependencies
+uv sync --no-dev
+```
+
+Then restart your terminal or reload Oh My Zsh.
 
 ## Configuration
 
@@ -165,6 +196,50 @@ git config --global core.hooksPath ~/.config/git/hooks
 ```
 
 This immediately applies to all your existing and new repositories without needing to run any additional commands.
+
+## Development
+
+If you want to contribute or develop the plugin locally:
+
+### Using uv (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/MMSs/git-ai-commit.git
+cd git-ai-commit
+
+# Install dependencies (creates venv automatically and installs everything)
+uv sync
+
+# Run tests
+uv run pytest
+
+# Format code
+uv run black src/
+
+# Lint code
+uv run ruff check src/
+
+# Type check
+uv run mypy src/
+```
+
+### Using pip
+
+```bash
+# Clone the repository
+git clone https://github.com/MMSs/git-ai-commit.git
+cd git-ai-commit
+
+# Create virtual environment
+python3 -m venv .venv
+
+# Activate virtual environment
+source .venv/bin/activate
+
+# Install in editable mode with dev dependencies
+pip install -e ".[dev]"
+```
 
 ## Known issues
 
