@@ -147,7 +147,7 @@ DEFAULT_CONFIG = {
     "openai": {
         "model": "gpt-5-nano",
         "temperature": 0.7,
-        "max_tokens": 1000,
+        "max_tokens": 0,
     },
     "context": {
         "max_input_tokens": 6000,
@@ -1031,10 +1031,10 @@ Do NOT use: markdown, code blocks, backticks, or double quotes.
                 ],
             }
 
-            # Handle max tokens parameter (newer models use max_completion_tokens)
-            max_tokens = self.config["openai"].get("max_completion_tokens") or \
-                         self.config["openai"].get("max_tokens", 150)
-            api_params["max_completion_tokens"] = max_tokens
+            # Only set max_completion_tokens if explicitly configured (0 = no limit)
+            max_tokens = self.config["openai"].get("max_tokens", 0)
+            if max_tokens > 0:
+                api_params["max_completion_tokens"] = max_tokens
 
             # Some models don't support custom temperature
             # - Reasoning models (o1, o3, o4): no temperature support
