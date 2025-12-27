@@ -107,11 +107,22 @@ _gcommit() {
         } &
         local loading_pid=$!
 
+        # Set up cleanup function for Ctrl+C
+        _cleanup_loading() {
+            kill $loading_pid 2>/dev/null
+            wait $loading_pid 2>/dev/null
+            _git_ai_commit_clear_message
+            rm -f "$temp_file" "$error_file" 2>/dev/null
+        }
+
         # Generate commit message with streaming output
         local temp_file=$(mktemp)
         local error_file=$(mktemp)
         local exit_status
         local current_dir="$PWD"
+
+        # Set up trap to catch Ctrl+C (SIGINT) and clean up
+        trap '_cleanup_loading; return 1' INT
 
         # Use uv run if uv is available and venv exists, otherwise use traditional activation
         if command -v uv &>/dev/null && [[ -d "${PLUGIN_DIR}/.venv" ]]; then
@@ -130,6 +141,9 @@ _gcommit() {
             ) > "$temp_file" 2> "$error_file"
             exit_status=$?
         fi
+
+        # Remove the trap
+        trap - INT
 
         # Stop the loading animation
         kill $loading_pid 2>/dev/null
