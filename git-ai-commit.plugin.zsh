@@ -52,6 +52,24 @@ _git_ai_commit_display_message() {
     echoti rc                          # restore_cursor
 }
 
+# Function to animate loading dots
+_git_ai_commit_loading() {
+    local base_msg="🤖 Generating commit message"
+    local color=3  # Yellow
+
+    while true; do
+        for i in {0..3}; do
+            if [[ $i -eq 0 ]]; then
+                _git_ai_commit_display_message "$base_msg" $color
+            else
+                local dots=$(printf '.%.0s' $(seq 1 $i))
+                _git_ai_commit_display_message "${base_msg} ${dots}" $color
+            fi
+            sleep 0.3
+        done
+    done
+}
+
 # Function to clear the message area at the bottom
 _git_ai_commit_clear_message() {
     echoti sc                          # save_cursor
@@ -82,9 +100,12 @@ _gcommit() {
         # Save current buffer and remove any trailing space
         local original_buffer=${BUFFER}
 
-        # Display loading indicator
-        _git_ai_commit_display_message "🤖 Generating commit message..." 3
-        zle -R  # Force redraw to show the message
+        # Start animated loading indicator in background, suppressing job control messages
+        setopt local_options no_notify no_monitor
+        {
+            _git_ai_commit_loading
+        } &
+        local loading_pid=$!
 
         # Generate commit message with streaming output
         local temp_file=$(mktemp)
@@ -109,6 +130,10 @@ _gcommit() {
             ) > "$temp_file" 2> "$error_file"
             exit_status=$?
         fi
+
+        # Stop the loading animation
+        kill $loading_pid 2>/dev/null
+        wait $loading_pid 2>/dev/null
 
         local suggestion=$(cat "$temp_file")
         local error_msg=$(cat "$error_file")
