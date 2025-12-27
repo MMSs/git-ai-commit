@@ -12,6 +12,19 @@ import sys
 from openai import AsyncOpenAI
 
 
+def print_output(message: str, is_error: bool = False) -> None:
+    """Print output with space injection and optional error formatting.
+
+    Args:
+        message: The message to print.
+        is_error: If True, print to stderr (no formatting, handled by zsh).
+    """
+    if is_error:
+        print(message, file=sys.stderr, flush=True)
+    else:
+        print(f"{message}")
+
+
 class CacheManager:
     """Manages file-based caching for expensive git operations.
 
@@ -1003,7 +1016,7 @@ Do NOT use: markdown, code blocks, backticks, or double quotes.
         """
         diff = self.get_staged_changes()
         if not diff:
-            print("No staged changes found.")
+            print_output("No staged changes found.", is_error=True)
             return None
 
         try:
@@ -1046,12 +1059,12 @@ Do NOT use: markdown, code blocks, backticks, or double quotes.
             response = await self.client.chat.completions.create(**api_params)
 
             suggestion = response.choices[0].message.content or ""
-            print(f' "{suggestion}"')
+            print_output(f'"{suggestion}"')
 
             return suggestion
 
         except Exception as e:
-            print(f"Error: {str(e)}", file=sys.stderr)
+            print_output(f"Error: {str(e)}", is_error=True)
             return None
 
 
@@ -1062,7 +1075,7 @@ def main():
         suggestion = asyncio.run(committer.generate_suggestion())
         return 0 if suggestion else 1
     except Exception as e:
-        print(f"Error: {str(e)}")
+        print_output(f"Error: {str(e)}", is_error=True)
         return 1
 
 
