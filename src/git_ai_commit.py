@@ -1059,7 +1059,7 @@ Do NOT use: markdown, code blocks, backticks, or double quotes.
             response = await self.client.chat.completions.create(**api_params)
 
             suggestion = response.choices[0].message.content or ""
-            print_output(f'"{suggestion}"')
+            print_output(f'{suggestion}')
 
             return suggestion
 

@@ -119,7 +119,7 @@ _gcommit() {
 
         # If we got a suggestion, update the command line
         if [[ $exit_status -eq 0 && -n "$suggestion" ]]; then
-            BUFFER="${original_buffer} ${suggestion}"
+            BUFFER="${original_buffer/% /} \"${suggestion}\""
             CURSOR=${#BUFFER}
             # Reset prompt to print the generated commit message
             zle reset-prompt
