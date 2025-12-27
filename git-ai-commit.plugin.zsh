@@ -80,7 +80,7 @@ _gcommit() {
         fi
 
         # Save current buffer and remove any trailing space
-        local original_buffer=${BUFFER%% }
+        local original_buffer=${BUFFER}
 
         # Display loading indicator
         _git_ai_commit_display_message "🤖 Generating commit message..." 3
@@ -121,12 +121,15 @@ _gcommit() {
         if [[ $exit_status -eq 0 && -n "$suggestion" ]]; then
             BUFFER="${original_buffer} ${suggestion}"
             CURSOR=${#BUFFER}
+            # Reset prompt to print the generated commit message
+            zle reset-prompt
             # Display success indicator briefly
             _git_ai_commit_display_message "✓ Commit message generated" 2
         else
             # On error, restore original buffer and display error
             BUFFER=$original_buffer
             CURSOR=${#BUFFER}
+
             if [[ -n "$error_msg" ]]; then
                 # Strip ANSI codes and newlines from error message for display
                 local clean_error=${error_msg//$'\n'/ }
@@ -135,7 +138,9 @@ _gcommit() {
             fi
         fi
 
-        # Reset prompt
+        # wait for 2 seconds to allow the user to read the message
+        sleep 2
+        # Then reset prompt to remove the message
         zle reset-prompt
 
         # Re-enable autosuggestions if available
