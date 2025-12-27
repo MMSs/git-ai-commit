@@ -177,8 +177,13 @@ _gcommit() {
             fi
         fi
 
-        # wait for 2 seconds to allow the user to read the message
-        sleep 2
+        # Wait up to 5 seconds, but allow any keypress to interrupt
+        local user_key
+        if read -t 5 -k 1 user_key 2>/dev/null; then
+            # User pressed a key, put it back in the buffer
+            BUFFER="${BUFFER}${user_key}"
+            CURSOR=${#BUFFER}
+        fi
         # Then reset prompt to remove the message
         zle reset-prompt
 
