@@ -227,6 +227,16 @@ DEFAULT_CONFIG = {
                 "example": "✨ feat: add user authentication feature\\n\\n- Implemented user login and registration using JWT tokens.\\n- Added password hashing and validation.\\n- Updated user model to include authentication fields.\\n\\nFixes #123\\nSigned-off-by: John Doe <john.doe@example.com>",
             },
         },
+        "traditional": {
+            "single-line": {
+                "template": "<description>",
+                "example": "Add user authentication feature",
+            },
+            "multi-line": {
+                "template": "<description>\\n\\n<body>",
+                "example": "Add user authentication feature\\n\\n- Implemented user login and registration using JWT tokens.\\n- Added password hashing and validation.\\n- Updated user model to include authentication fields.",
+            },
+        },
     },
 }
 

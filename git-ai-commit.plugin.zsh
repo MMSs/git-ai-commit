@@ -127,7 +127,7 @@ _gcommit() {
         # Use uv run if uv is available and venv exists, otherwise use traditional activation
         if command -v uv &>/dev/null && [[ -d "${PLUGIN_DIR}/.venv" ]]; then
             (
-                uv run --directory "$current_dir" python "${PLUGIN_DIR}/src/git_ai_commit.py"
+                uv run --project "${PLUGIN_DIR}" python "${PLUGIN_DIR}/src/git_ai_commit.py"
             ) > "$temp_file" 2> "$error_file"
             exit_status=$?
         else
