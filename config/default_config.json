@@ -2,6 +2,7 @@
     "_comment_models": "OpenAI models: gpt-5-nano (fastest/cheapest), gpt-5-mini (balanced), gpt-5.2 (most capable). Previous gen: gpt-4.1, gpt-4.1-nano, gpt-4.1-mini. Reasoning: o4-mini, o3-mini (no temperature support).",
     "_comment_max_tokens": "max_tokens: 0 = no limit (recommended for gpt-5/reasoning models). Set to a positive number (e.g., 1000) to limit API costs. Note: gpt-5 models use internal reasoning tokens, so they need higher limits than older models.",
     "_comment_temperature": "temperature: Only used for older models (gpt-4.x). GPT-5 and reasoning models (o1, o3, o4) ignore this setting.",
+    "_comment_reasoning_effort": "reasoning_effort: Controls reasoning depth for o-series (o1/o3/o4) and gpt-5 models. Options: none (gpt-5.1+), low, medium, high, xhigh (gpt-5.2). Ignored for unsupported models.",
     "suggestion": {
         "convention": "conventional",
         "format": "multi-line",
@@ -10,7 +11,8 @@
     "openai": {
         "model": "gpt-5-nano",
         "temperature": 0.7,
-        "max_tokens": 0
+        "max_tokens": 0,
+        "reasoning_effort": "low"
     },
     "context": {
         "max_input_tokens": 6000,

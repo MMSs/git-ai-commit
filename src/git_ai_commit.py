@@ -161,6 +161,7 @@ DEFAULT_CONFIG = {
         "model": "gpt-5-nano",
         "temperature": 0.7,
         "max_tokens": 0,
+        "reasoning_effort": "low",
     },
     "context": {
         "max_input_tokens": 6000,
@@ -1065,6 +1066,14 @@ Do NOT use: markdown, code blocks, backticks, or double quotes.
             no_temp_models = ("o1", "o3", "o4", "gpt-5")
             if not any(model.startswith(prefix) for prefix in no_temp_models):
                 api_params["temperature"] = self.config["openai"].get("temperature", 0.7)
+
+            # Reasoning effort parameter for o-series and GPT-5 models
+            # Valid values: "none" (gpt-5.1+), "low", "medium", "high", "xhigh" (gpt-5.2)
+            reasoning_effort = self.config["openai"].get("reasoning_effort")
+            if reasoning_effort:
+                reasoning_models = ("o1", "o3", "o4", "gpt-5")
+                if any(model.startswith(prefix) for prefix in reasoning_models):
+                    api_params["reasoning_effort"] = reasoning_effort
 
             response = await self.client.chat.completions.create(**api_params)
 
