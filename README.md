@@ -124,7 +124,7 @@ You can use a `prepare-commit-msg` hook to automatically generate commit message
 mkdir -p ~/.config/git/hooks
 ```
 
-2. Create `~/.config/git/hooks/prepare-commit-msg`:
+2. Create or update `~/.config/git/hooks/prepare-commit-msg`:
 
 ```bash
 #!/bin/bash
@@ -139,6 +139,9 @@ if [ -z "$COMMIT_SOURCE" ]; then
 
         # Check if we have staged changes
         if ! git diff --cached --quiet; then
+            # Use ANSI escape codes for colors (bash-compatible, portable across shells)
+            # Hook scripts run in various environments, so we use standard ANSI codes
+            # instead of shell-specific features like zsh's terminfo module
             # Show loading message
             echo -e "\033[33m🤖 Generating AI commit message...\033[0m" >&2
 
@@ -147,9 +150,15 @@ if [ -z "$COMMIT_SOURCE" ]; then
 
             # Use uv run if available, otherwise use venv
             if command -v uv &>/dev/null && [ -d "$PLUGIN_DIR/.venv" ]; then
-                MSG=$(uv run --project "$PLUGIN_DIR" python "$PLUGIN_DIR/src/git_ai_commit.py" 2>/tmp/git-ai-commit-error.txt)
+                MSG=$(uv run --project "$PLUGIN_DIR" python "$PLUGIN_DIR/src/git_ai_commit.py" 2>&1)
             else
-                MSG=$(source "$PLUGIN_DIR/.venv/bin/activate" && python3 "$PLUGIN_DIR/src/git_ai_commit.py" 2>/tmp/git-ai-commit-error.txt && deactivate)
+                MSG=$(
+                    source "$PLUGIN_DIR/.venv/bin/activate" || exit 1
+                    python3 "$PLUGIN_DIR/src/git_ai_commit.py" 2>&1
+                    exit_code=$?
+                    deactivate
+                    exit $exit_code
+                )
             fi
             EXIT_CODE=$?
 
@@ -161,15 +170,8 @@ if [ -z "$COMMIT_SOURCE" ]; then
                 echo "$MSG" > "$COMMIT_MSG_FILE"
                 echo -e "\033[32m✓ Commit message generated in ${DURATION}s\033[0m" >&2
             else
-                ERROR_MSG=$(cat /tmp/git-ai-commit-error.txt 2>/dev/null)
                 echo -e "\033[31m✗ Failed to generate commit message\033[0m" >&2
-                if [ -n "$ERROR_MSG" ]; then
-                    echo -e "\033[31m  Error: $ERROR_MSG\033[0m" >&2
-                fi
             fi
-
-            # Cleanup
-            rm -f /tmp/git-ai-commit-error.txt
         fi
     fi
 fi
@@ -196,7 +198,7 @@ git config --global core.hooksPath ~/.config/git/hooks
 
 ### Notes
 
-- The hook works with `git commit` but **not** with `git commit --verbose` or aliases that use the `--verbose` flag (like `gc` from oh-my-zsh's git plugin)
+- The hook works with `git commit` but **not** with `git commit --verbose`, as these set `$COMMIT_SOURCE` to a non-empty value and append the full diff to the template.
 - For aliases like `gcmsg` that use `git commit -m`, use the TAB key integration instead
 - The hook only runs for new commits (not for amend, merge, etc.)
 
@@ -218,27 +220,12 @@ customCommands:
     context: "files"
     output: "terminal"
     command: >
-      bash -c 'PLUGIN_DIR="$HOME/.oh-my-zsh/custom/plugins/git-ai-commit";
-      if command -v uv &>/dev/null && [ -d "$PLUGIN_DIR/.venv" ]; then
-        MSG=$(uv run --project "$PLUGIN_DIR" python "$PLUGIN_DIR/src/git_ai_commit.py" 2>/dev/null);
-      else
-        source "$PLUGIN_DIR/.venv/bin/activate";
-        MSG=$(python3 "$PLUGIN_DIR/src/git_ai_commit.py" 2>/dev/null);
-        deactivate;
-      fi;
-      if [ -n "$MSG" ]; then
-        echo "$MSG" > .git/COMMIT_EDITMSG &&
-        ${EDITOR:-nvim} .git/COMMIT_EDITMSG &&
-        if [ -s .git/COMMIT_EDITMSG ]; then
-          git commit -F .git/COMMIT_EDITMSG;
-        else
-          echo "Commit aborted";
-        fi;
-      else
-        echo "Failed to generate commit message";
-        read -p "Press enter to continue...";
-      fi'
+      bash {{path-to-git-ai-commit-plugin}}/bin/lazygit-generate-commit.sh
 ```
+
+Replace `{{path-to-git-ai-commit-plugin}}` with the actual path, typically:
+- `$HOME/.oh-my-zsh/custom/plugins/git-ai-commit` for standard Oh My Zsh installations
+- `${ZSH_CUSTOM}/plugins/git-ai-commit` if you have a custom ZSH_CUSTOM path
 
 5. Save the file and restart lazygit
 
@@ -251,9 +238,10 @@ customCommands:
 
 ### Notes
 
-- The command uses `$HOME` instead of `~` for shell compatibility
+- The script is located in `bin/lazygit-generate-commit.sh` within the plugin directory
 - Uses `$EDITOR` environment variable (defaults to `nvim`)
 - `output: "terminal"` suspends lazygit and runs the command in a terminal
+- The script includes trap handlers for proper cleanup of temporary files
 
 ## Development
 
