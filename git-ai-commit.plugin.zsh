@@ -136,8 +136,8 @@ _gcommit() {
         local exit_status
         local current_dir="$PWD"
 
-        # Set up trap to catch Ctrl+C (SIGINT) and clean up
-        trap '_cleanup_loading; return 1' INT
+        # Set up trap to catch Ctrl+C (SIGINT) and SIGTERM and clean up
+        trap '_cleanup_loading; return 1' INT TERM
 
         # Use uv run if uv is available and venv exists, otherwise use traditional activation
         if command -v uv &>/dev/null && [[ -d "${PLUGIN_DIR}/.venv" ]]; then
@@ -157,12 +157,12 @@ _gcommit() {
             exit_status=$?
         fi
 
-        # Remove the trap
-        trap - INT
-
         # Stop the loading animation
         kill $loading_pid 2>/dev/null
         wait $loading_pid 2>/dev/null
+
+        # Remove the trap
+        trap - INT TERM
 
         local suggestion=$(cat "$temp_file")
         local error_msg=$(cat "$error_file")
