@@ -112,15 +112,19 @@ git add .
 
 3. If you didn't like the suggestion, delete the message and hit TAB again to generate a new suggestion
 
-## Lazygit Integration
+## Git Hook Integration
 
-You can integrate Git AI Commit with [lazygit](https://github.com/jesseduffield/lazygit) to automatically generate AI-powered commit messages when you commit.
+You can use a `prepare-commit-msg` hook to automatically generate commit messages when running `git commit` (without a message). This works with any tool that uses Git's standard commit flow.
 
 ### Setup
 
-This integration uses a Git hook that automatically generates the commit message when you press `c` to commit in lazygit.
+1. Create a global hooks directory:
 
-1. Create a prepare-commit-msg hook in your repository at `.git/hooks/prepare-commit-msg`:
+```bash
+mkdir -p ~/.config/git/hooks
+```
+
+2. Create `~/.config/git/hooks/prepare-commit-msg`:
 
 ```bash
 #!/bin/bash
@@ -129,73 +133,127 @@ COMMIT_SOURCE=$2
 
 # Only generate for new commits (not amend, merge, etc.)
 if [ -z "$COMMIT_SOURCE" ]; then
-    # Check if commit message is empty
-    if [ ! -s "$COMMIT_MSG_FILE" ]; then
+    # Check if commit message has no actual content (only comments or empty)
+    if ! grep -q '^[^#]' "$COMMIT_MSG_FILE" 2>/dev/null; then
         PLUGIN_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/git-ai-commit"
 
         # Check if we have staged changes
         if ! git diff --cached --quiet; then
-            # Generate AI commit message
-            source "$PLUGIN_DIR/.venv/bin/activate"
-            MSG=$(python3 "$PLUGIN_DIR/src/git_ai_commit.py" 2>/dev/null | sed 's/^ "//;s/"$//')
-            deactivate
+            # Show loading message
+            echo -e "\033[33m🤖 Generating AI commit message...\033[0m" >&2
+
+            # Generate AI commit message with timing
+            START_TIME=$(date +%s)
+
+            # Use uv run if available, otherwise use venv
+            if command -v uv &>/dev/null && [ -d "$PLUGIN_DIR/.venv" ]; then
+                MSG=$(uv run --project "$PLUGIN_DIR" python "$PLUGIN_DIR/src/git_ai_commit.py" 2>/tmp/git-ai-commit-error.txt)
+            else
+                MSG=$(source "$PLUGIN_DIR/.venv/bin/activate" && python3 "$PLUGIN_DIR/src/git_ai_commit.py" 2>/tmp/git-ai-commit-error.txt && deactivate)
+            fi
+            EXIT_CODE=$?
+
+            END_TIME=$(date +%s)
+            DURATION=$((END_TIME - START_TIME))
 
             # Write the message if generation succeeded
-            if [ -n "$MSG" ]; then
+            if [ $EXIT_CODE -eq 0 ] && [ -n "$MSG" ]; then
                 echo "$MSG" > "$COMMIT_MSG_FILE"
+                echo -e "\033[32m✓ Commit message generated in ${DURATION}s\033[0m" >&2
+            else
+                ERROR_MSG=$(cat /tmp/git-ai-commit-error.txt 2>/dev/null)
+                echo -e "\033[31m✗ Failed to generate commit message\033[0m" >&2
+                if [ -n "$ERROR_MSG" ]; then
+                    echo -e "\033[31m  Error: $ERROR_MSG\033[0m" >&2
+                fi
             fi
+
+            # Cleanup
+            rm -f /tmp/git-ai-commit-error.txt
         fi
     fi
 fi
 ```
 
-2. Make the hook executable:
-
-```bash
-chmod +x .git/hooks/prepare-commit-msg
-```
-
-### Usage in Lazygit
-
-1. Open lazygit in your repository: `lazygit`
-2. Stage your changes using the `space` key
-3. Press `c` to commit
-4. The AI will automatically generate a commit message and populate the editor
-5. Review and edit the message if needed
-6. Save and close the editor to complete the commit
-
-### Notes
-
-- The AI generation happens automatically when you press `c` to commit
-- The generation may take a few seconds depending on the size of your changes
-- You can still edit the generated message before finalizing the commit
-- The hook only runs for new commits (not for amend, merge commits, etc.)
-- The same configuration options from `~/.config/git-ai-commit/config.json` apply
-- You'll need to set up this hook for each repository where you want to use it
-
-### Optional: Global Hook Setup
-
-If you want this to work automatically in all your repositories (requires Git 2.9+):
-
-1. Create a global hooks directory:
-
-```bash
-mkdir -p ~/.config/git/hooks
-```
-
-2. Create `~/.config/git/hooks/prepare-commit-msg` with the same content as above and make it executable:
+3. Make the hook executable:
 
 ```bash
 chmod +x ~/.config/git/hooks/prepare-commit-msg
 ```
 
-3. Configure Git to use this hooks directory (this modifies your `~/.gitconfig`):
+4. Configure Git to use this hooks directory:
 
 ```bash
 git config --global core.hooksPath ~/.config/git/hooks
 ```
 
-This immediately applies to all your existing and new repositories without needing to run any additional commands.
+### Usage
+
+1. Stage your changes: `git add .`
+2. Run `git commit` (without `-m` flag)
+3. The hook will generate an AI commit message and open your editor with it pre-filled
+4. Review, edit if needed, and save to complete the commit
+
+### Notes
+
+- The hook works with `git commit` but **not** with `git commit --verbose` or aliases that use the `--verbose` flag (like `gc` from oh-my-zsh's git plugin)
+- For aliases like `gcmsg` that use `git commit -m`, use the TAB key integration instead
+- The hook only runs for new commits (not for amend, merge, etc.)
+
+## Lazygit Integration
+
+You can integrate Git AI Commit with [lazygit](https://github.com/jesseduffield/lazygit) using a custom command that generates commit messages on demand.
+
+### Setup
+
+1. Open lazygit: `lazygit`
+2. Navigate to the **Status** panel (press `1` or use arrow keys)
+3. Press `e` to edit the config file
+4. Add the following custom command:
+
+```yaml
+customCommands:
+  - key: "<c-g>"
+    description: "Generate AI commit message"
+    context: "files"
+    output: "terminal"
+    command: >
+      bash -c 'PLUGIN_DIR="$HOME/.oh-my-zsh/custom/plugins/git-ai-commit";
+      if command -v uv &>/dev/null && [ -d "$PLUGIN_DIR/.venv" ]; then
+        MSG=$(uv run --project "$PLUGIN_DIR" python "$PLUGIN_DIR/src/git_ai_commit.py" 2>/dev/null);
+      else
+        source "$PLUGIN_DIR/.venv/bin/activate";
+        MSG=$(python3 "$PLUGIN_DIR/src/git_ai_commit.py" 2>/dev/null);
+        deactivate;
+      fi;
+      if [ -n "$MSG" ]; then
+        echo "$MSG" > .git/COMMIT_EDITMSG &&
+        ${EDITOR:-nvim} .git/COMMIT_EDITMSG &&
+        if [ -s .git/COMMIT_EDITMSG ]; then
+          git commit -F .git/COMMIT_EDITMSG;
+        else
+          echo "Commit aborted";
+        fi;
+      else
+        echo "Failed to generate commit message";
+        read -p "Press enter to continue...";
+      fi'
+```
+
+5. Save the file and restart lazygit
+
+### Usage in Lazygit
+
+1. Stage your changes using `space`
+2. Press `Ctrl+G` to generate an AI commit message
+3. Your editor opens with the generated message
+4. Edit if needed, save and close to commit (or clear the file to abort)
+
+### Notes
+
+- The command uses `$HOME` instead of `~` for shell compatibility
+- Uses `$EDITOR` environment variable (defaults to `nvim`)
+- `output: "terminal"` suspends lazygit and runs the command in a terminal
 
 ## Development
 
