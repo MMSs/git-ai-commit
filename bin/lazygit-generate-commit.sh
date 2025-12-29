@@ -35,18 +35,20 @@ trap cleanup EXIT INT TERM
 # Prefer uv if available for faster execution, otherwise use traditional venv activation
 if command -v uv &>/dev/null && [ -d "$PLUGIN_DIR/.venv" ]; then
     MSG=$(uv run --project "$PLUGIN_DIR" python "$PLUGIN_DIR/src/git_ai_commit.py" 2>&1)
+    EXIT_CODE=$?
 else
     MSG=$(
         source "$PLUGIN_DIR/.venv/bin/activate" || exit 1
         python3 "$PLUGIN_DIR/src/git_ai_commit.py" 2>&1
-        local exit_code=$?
+        exit_code=$?
         deactivate
         exit $exit_code
     )
+    EXIT_CODE=$?
 fi
 
-# Process the generated message
-if [ -n "$MSG" ]; then
+# Process the generated message only if generation succeeded
+if [ $EXIT_CODE -eq 0 ] && [ -n "$MSG" ]; then
     # Write generated message to temporary file
     echo "$MSG" > "$TEMP_COMMIT_MSG"
 

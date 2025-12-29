@@ -155,7 +155,7 @@ if [ -z "$COMMIT_SOURCE" ]; then
                 MSG=$(
                     source "$PLUGIN_DIR/.venv/bin/activate" || exit 1
                     python3 "$PLUGIN_DIR/src/git_ai_commit.py" 2>&1
-                    local exit_code=$?
+                    exit_code=$?
                     deactivate
                     exit $exit_code
                 )
