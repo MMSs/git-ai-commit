@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import hashlib
 import json
 import os
@@ -154,12 +155,22 @@ class CacheManager:
 
 # Load default configuration from YAML file
 _DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / "config" / "default_config.yaml"
+
+# Validate that the default config file exists
+if not _DEFAULT_CONFIG_PATH.exists():
+    print_output(
+        f"FATAL ERROR: Default configuration file not found at {_DEFAULT_CONFIG_PATH}\n"
+        f"This is likely a package installation issue. Please reinstall git-ai-commit.",
+        is_error=True,
+    )
+    sys.exit(1)
+
 try:
     with open(_DEFAULT_CONFIG_PATH) as f:
         DEFAULT_CONFIG = yaml.safe_load(f)
-except (FileNotFoundError, yaml.YAMLError) as e:
+except yaml.YAMLError as e:
     print_output(
-        f"ERROR: Failed to load default configuration from {_DEFAULT_CONFIG_PATH}: {e}",
+        f"ERROR: Failed to parse default configuration from {_DEFAULT_CONFIG_PATH}: {e}",
         is_error=True,
     )
     sys.exit(1)
@@ -186,7 +197,7 @@ class GitAICommit:
         Note: JSON format (.json) is supported for backward compatibility but not documented.
         YAML configs (.yaml, .yml) take precedence over JSON when both exist.
         """
-        config = DEFAULT_CONFIG.copy()
+        config = copy.deepcopy(DEFAULT_CONFIG)
 
         # Try global configs (YAML first, then JSON for backward compatibility)
         config_dir = Path.home() / ".config" / "git-ai-commit"
@@ -216,6 +227,13 @@ class GitAICommit:
                 if path.suffix in [".yaml", ".yml"]:
                     return yaml.safe_load(f) or {}
                 else:  # .json - backward compatibility only
+                    # Warn users about JSON deprecation
+                    print_output(
+                        f"Warning: JSON config detected at {path}. "
+                        f"JSON configs are deprecated and may be removed in a future version. "
+                        f"Please migrate to YAML format (.yaml or .yml).",
+                        is_error=True
+                    )
                     return json.load(f)
         except (json.JSONDecodeError, yaml.YAMLError, IOError) as e:
             # Log error but don't crash - return empty dict
@@ -223,8 +241,20 @@ class GitAICommit:
             return {}
 
     def _merge_config(self, base: Dict, override: Dict) -> Dict:
-        """Shallow merge: top-level keys from override replace base."""
-        return {**base, **override}
+        """Deep merge: recursively merge nested dictionaries.
+
+        This ensures that partial config overrides preserve other nested values.
+        For example, overriding only openai.model won't wipe out temperature, max_tokens, etc.
+        """
+        result = copy.deepcopy(base)
+        for key, value in override.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                # Recursively merge nested dictionaries
+                result[key] = self._merge_config(result[key], value)
+            else:
+                # Replace non-dict values or add new keys
+                result[key] = value
+        return result
 
     def _run_git_command(self, *args) -> str:
         try:
