@@ -147,9 +147,15 @@ if [ -z "$COMMIT_SOURCE" ]; then
 
             # Use uv run if available, otherwise use venv
             if command -v uv &>/dev/null && [ -d "$PLUGIN_DIR/.venv" ]; then
-                MSG=$(uv run --project "$PLUGIN_DIR" python "$PLUGIN_DIR/src/git_ai_commit.py" 2>/tmp/git-ai-commit-error.txt)
+                MSG=$(uv run --project "$PLUGIN_DIR" python "$PLUGIN_DIR/src/git_ai_commit.py" 2>&1)
             else
-                MSG=$(source "$PLUGIN_DIR/.venv/bin/activate" && python3 "$PLUGIN_DIR/src/git_ai_commit.py" 2>/tmp/git-ai-commit-error.txt && deactivate)
+                MSG=$(
+                    source "$PLUGIN_DIR/.venv/bin/activate" || exit 1
+                    python3 "$PLUGIN_DIR/src/git_ai_commit.py" 2>&1
+                    local exit_code=$?
+                    deactivate
+                    exit $exit_code
+                )
             fi
             EXIT_CODE=$?
 
@@ -161,15 +167,8 @@ if [ -z "$COMMIT_SOURCE" ]; then
                 echo "$MSG" > "$COMMIT_MSG_FILE"
                 echo -e "\033[32m✓ Commit message generated in ${DURATION}s\033[0m" >&2
             else
-                ERROR_MSG=$(cat /tmp/git-ai-commit-error.txt 2>/dev/null)
                 echo -e "\033[31m✗ Failed to generate commit message\033[0m" >&2
-                if [ -n "$ERROR_MSG" ]; then
-                    echo -e "\033[31m  Error: $ERROR_MSG\033[0m" >&2
-                fi
             fi
-
-            # Cleanup
-            rm -f /tmp/git-ai-commit-error.txt
         fi
     fi
 fi
@@ -219,18 +218,24 @@ customCommands:
     output: "terminal"
     command: >
       bash -c 'PLUGIN_DIR="$HOME/.oh-my-zsh/custom/plugins/git-ai-commit";
+      TEMP_COMMIT_MSG=$(mktemp .git/COMMIT_EDITMSG.XXXXXX);
+      trap "rm -f \"$TEMP_COMMIT_MSG\"" EXIT INT TERM;
       if command -v uv &>/dev/null && [ -d "$PLUGIN_DIR/.venv" ]; then
-        MSG=$(uv run --project "$PLUGIN_DIR" python "$PLUGIN_DIR/src/git_ai_commit.py" 2>/dev/null);
+        MSG=$(uv run --project "$PLUGIN_DIR" python "$PLUGIN_DIR/src/git_ai_commit.py" 2>&1);
       else
-        source "$PLUGIN_DIR/.venv/bin/activate";
-        MSG=$(python3 "$PLUGIN_DIR/src/git_ai_commit.py" 2>/dev/null);
-        deactivate;
+        MSG=$(
+          source "$PLUGIN_DIR/.venv/bin/activate" || exit 1;
+          python3 "$PLUGIN_DIR/src/git_ai_commit.py" 2>&1;
+          local exit_code=$?;
+          deactivate;
+          exit $exit_code
+        );
       fi;
       if [ -n "$MSG" ]; then
-        echo "$MSG" > .git/COMMIT_EDITMSG &&
-        ${EDITOR:-nvim} .git/COMMIT_EDITMSG &&
-        if [ -s .git/COMMIT_EDITMSG ]; then
-          git commit -F .git/COMMIT_EDITMSG;
+        echo "$MSG" > "$TEMP_COMMIT_MSG" &&
+        ${EDITOR:-nvim} "$TEMP_COMMIT_MSG" &&
+        if [ -s "$TEMP_COMMIT_MSG" ]; then
+          git commit -F "$TEMP_COMMIT_MSG";
         else
           echo "Commit aborted";
         fi;
