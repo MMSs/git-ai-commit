@@ -1,10 +1,12 @@
 import asyncio
+import copy
 import hashlib
 import json
 import os
 import re
 import subprocess
 import time
+import yaml
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 import sys
@@ -151,95 +153,27 @@ class CacheManager:
             cache_file.unlink()
 
 
-DEFAULT_CONFIG = {
-    "suggestion": {
-        "convention": "conventional",
-        "format": "multi-line",
-        "max_length_per_line": 72,
-    },
-    "openai": {
-        "model": "gpt-5-nano",
-        "temperature": 0.7,
-        "max_tokens": 0,
-        "reasoning_effort": "low",
-    },
-    "context": {
-        "max_input_tokens": 6000,
-        "include_commit_history": True,
-        "commit_history_count": 5,
-        "smart_file_filtering": True,
-        "readme_excerpt_lines": 30,
-        "detect_tech_stack": True,
-        "analyze_branch_name": True,
-    },
-    "diff_analysis": {
-        "extract_functions": True,
-        "extract_imports": True,
-        "summarize_stats": True,
-    },
-    "caching": {
-        "cache_ttl_minutes": 5,
-        "enable_api_prompt_caching": True,
-        "enable_local_caching": True,
-    },
-    "convention_configs": {
-        "conventional": {
-            "types": [
-                "feat",
-                "feat!",
-                "fix",
-                "fix!",
-                "docs",
-                "style",
-                "refactor",
-                "test",
-                "chore",
-                "perf",
-                "ci",
-                "build",
-                "revert",
-            ],
-            "scopes": [],
-            "single-line": {
-                "template": "<type>(<scope>): <description>",
-                "example": "feat(api): add user authentication feature",
-            },
-            "multi-line": {
-                "template": "<type>(<scope>): <description>\\n\\n<body>\\n\\n<footer>",
-                "example": "feat(api): add user authentication feature\\n\\n- Implemented user login and registration using JWT tokens.\\n- Added password hashing and validation.\\n- Updated user model to include authentication fields.\\n\\nFixes #123\\nSigned-off-by: John Doe <john.doe@example.com>",
-            },
-        },
-        "gitmoji": {
-            "prefixes": [
-                "✨ feat:",
-                "🐛 fix:",
-                "📚 docs:",
-                "💄 style:",
-                "♻️ refactor:",
-                "✅ test:",
-                "🔧 chore:",
-            ],
-            "single-line": {
-                "template": "<prefix>: <description>",
-                "example": "✨ feat: add user authentication feature",
-            },
-            "multi-line": {
-                "template": "<prefix>: <description>\\n\\n<body>\\n\\n<footer>",
-                "example": "✨ feat: add user authentication feature\\n\\n- Implemented user login and registration using JWT tokens.\\n- Added password hashing and validation.\\n- Updated user model to include authentication fields.\\n\\nFixes #123\\nSigned-off-by: John Doe <john.doe@example.com>",
-            },
-        },
-        "traditional": {
-            "single-line": {
-                "template": "<description>",
-                "example": "Add user authentication feature",
-            },
-            "multi-line": {
-                "template": "<description>\\n\\n<body>",
-                "example": "Add user authentication feature\\n\\n- Implemented user login and registration using JWT tokens.\\n- Added password hashing and validation.\\n- Updated user model to include authentication fields.",
-            },
-        },
-    },
-}
+# Load default configuration from YAML file
+_DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / "config" / "default_config.yaml"
+
+# Validate that the default config file exists
+if not _DEFAULT_CONFIG_PATH.exists():
+    print_output(
+        f"FATAL ERROR: Default configuration file not found at {_DEFAULT_CONFIG_PATH}\n"
+        f"This is likely a package installation issue. Please reinstall git-ai-commit.",
+        is_error=True,
+    )
+    sys.exit(1)
+
+try:
+    with open(_DEFAULT_CONFIG_PATH) as f:
+        DEFAULT_CONFIG = yaml.safe_load(f)
+except yaml.YAMLError as e:
+    print_output(
+        f"ERROR: Failed to parse default configuration from {_DEFAULT_CONFIG_PATH}: {e}",
+        is_error=True,
+    )
+    sys.exit(1)
 
 
 class GitAICommit:
@@ -258,16 +192,69 @@ class GitAICommit:
         ) if self.cache_enabled else None
 
     def _load_config(self) -> Dict:
-        config = DEFAULT_CONFIG
-        config_path = Path.home() / ".config" / "git-ai-commit" / "config.json"
-        if config_path.exists():
-            with open(config_path) as f:
-                config = {**config, **json.load(f)}
-        local_config_path = self._get_repo_path() / ".git-ai-commit.json"
-        if local_config_path.exists():
-            with open(local_config_path) as f:
-                config = {**config, **json.load(f)}
+        """Load configuration with YAML-first strategy.
+
+        Note: JSON format (.json) is supported for backward compatibility but not documented.
+        YAML configs (.yaml, .yml) take precedence over JSON when both exist.
+        """
+        config = copy.deepcopy(DEFAULT_CONFIG)
+
+        # Try global configs (YAML first, then JSON for backward compatibility)
+        config_dir = Path.home() / ".config" / "git-ai-commit"
+        for filename in ["config.yaml", "config.yml", "config.json"]:
+            config_path = config_dir / filename
+            if config_path.exists():
+                config = self._merge_config(config, self._load_config_file(config_path))
+                break  # Use first found, skip rest
+
+        # Try project configs (YAML first, then JSON for backward compatibility)
+        repo_path = self._get_repo_path()
+        for filename in [".git-ai-commit.yaml", ".git-ai-commit.yml", ".git-ai-commit.json"]:
+            local_config_path = repo_path / filename
+            if local_config_path.exists():
+                config = self._merge_config(config, self._load_config_file(local_config_path))
+                break  # Use first found, skip rest
+
         return config
+
+    def _load_config_file(self, path: Path) -> Dict:
+        """Load a config file (JSON or YAML based on extension).
+
+        JSON support maintained for backward compatibility only.
+        """
+        try:
+            with open(path) as f:
+                if path.suffix in [".yaml", ".yml"]:
+                    return yaml.safe_load(f) or {}
+                else:  # .json - backward compatibility only
+                    # Warn users about JSON deprecation
+                    print_output(
+                        f"Warning: JSON config detected at {path}. "
+                        f"JSON configs are deprecated and may be removed in a future version. "
+                        f"Please migrate to YAML format (.yaml or .yml).",
+                        is_error=True
+                    )
+                    return json.load(f)
+        except (json.JSONDecodeError, yaml.YAMLError, IOError) as e:
+            # Log error but don't crash - return empty dict
+            print_output(f"Warning: Failed to load config from {path}: {e}", is_error=True)
+            return {}
+
+    def _merge_config(self, base: Dict, override: Dict) -> Dict:
+        """Deep merge: recursively merge nested dictionaries.
+
+        This ensures that partial config overrides preserve other nested values.
+        For example, overriding only openai.model won't wipe out temperature, max_tokens, etc.
+        """
+        result = copy.deepcopy(base)
+        for key, value in override.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                # Recursively merge nested dictionaries
+                result[key] = self._merge_config(result[key], value)
+            else:
+                # Replace non-dict values or add new keys
+                result[key] = value
+        return result
 
     def _run_git_command(self, *args) -> str:
         try:

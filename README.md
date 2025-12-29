@@ -82,23 +82,25 @@ Then restart your terminal or reload Oh My Zsh.
 
 ## Configuration
 
-The configuration file is located at `~/.config/git-ai-commit/config.json`. You can also create a project-specific configuration by adding a `.git-ai-commit.json` file to your project root.
+The configuration file is located at `~/.config/git-ai-commit/config.yaml`. You can also create a project-specific configuration by adding a `.git-ai-commit.yaml` file to your project root.
 
-```json
-{
-  "suggestion": {
-    "convention": "conventional",
-    "format": "multi-line",
-    "max_length_per_line": 72
-  },
-  "openai": {
-    "model": "gpt-4o-mini",
-    "temperature": 0.7,
-    "max_tokens": 150,
-    "streaming": true
-  }
-}
+**Note**: Both `.yaml` and `.yml` extensions are supported.
+
+```yaml
+# Commit message suggestion settings
+suggestion:
+  convention: conventional  # Options: conventional, gitmoji, traditional
+  format: multi-line       # Options: single-line, multi-line
+  max_length_per_line: 72
+
+# OpenAI API settings
+openai:
+  model: gpt-5-nano
+  temperature: 0.7
+  max_tokens: 0  # 0 = no limit (recommended)
 ```
+
+See [config/default_config.yaml](config/default_config.yaml) for all available configuration options with detailed comments.
 
 ## Usage
 
