@@ -7,6 +7,16 @@ fi
 # Load terminfo module for terminal control
 zmodload zsh/terminfo
 
+# Use terminfo for terminal control (zsh-specific, more robust than ANSI codes)
+# The terminfo module provides portable terminal capabilities through the system's terminfo database:
+#   - echoti sc/rc: save and restore cursor position
+#   - echoti cud/cuu: move cursor down/up
+#   - echoti setaf: set foreground color by capability, not hardcoded ANSI codes
+#   - echoti el: clear to end of line
+# This approach is more robust than raw ANSI escape codes because it queries the terminal's
+# actual capabilities, ensuring compatibility across different terminal emulators.
+# Note: Git hooks use ANSI codes instead since they run in bash, not zsh.
+
 # Plugin directory
 PLUGIN_DIR="${0:A:h}"
 
@@ -74,7 +84,7 @@ _git_ai_commit_loading() {
                 _git_ai_commit_display_message "$base_msg" $color
             else
                 local dots=$(printf '.%.0s' $(seq 1 $i))
-                _git_ai_commit_display_message "${base_msg} ${dots}" $color
+                _git_ai_commit_display_message "${base_msg}${dots}" $color
             fi
             sleep 0.3
         done
@@ -192,7 +202,12 @@ _gcommit() {
             fi
         fi
 
-        # Wait up to 3 seconds, but allow any keypress to interrupt
+        # Wait up to 3 seconds before clearing the status message, but allow any keypress to interrupt
+        # This timeout is intended to provide:
+        #   - Enough time for users to see success/error messages
+        #   - Quick return to normal command line interaction
+        #   - Immediate interruption on any user input to resume typing
+        # The -k 1 option reads a single keypress, and printable characters are added to BUFFER
         local user_key
         if read -t 3 -k 1 user_key 2>/dev/null; then
             # Only add printable characters to the buffer
