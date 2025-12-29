@@ -216,7 +216,7 @@ customCommands:
   - key: "<c-g>"
     description: "Generate AI commit message"
     context: "files"
-    subprocess: true
+    output: "terminal"
     command: >
       bash -c 'PLUGIN_DIR="$HOME/.oh-my-zsh/custom/plugins/git-ai-commit";
       if command -v uv &>/dev/null && [ -d "$PLUGIN_DIR/.venv" ]; then
@@ -253,7 +253,7 @@ customCommands:
 
 - The command uses `$HOME` instead of `~` for shell compatibility
 - Uses `$EDITOR` environment variable (defaults to `nvim`)
-- `subprocess: true` suspends lazygit while the editor is open
+- `output: "terminal"` suspends lazygit and runs the command in a terminal
 
 ## Development
 
