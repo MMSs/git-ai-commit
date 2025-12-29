@@ -192,12 +192,14 @@ _gcommit() {
             fi
         fi
 
-        # Wait up to 5 seconds, but allow any keypress to interrupt
+        # Wait up to 3 seconds, but allow any keypress to interrupt
         local user_key
         if read -t 3 -k 1 user_key 2>/dev/null; then
-            # User pressed a key, put it back in the buffer
-            BUFFER="${BUFFER}${user_key}"
-            CURSOR=${#BUFFER}
+            # Only add printable characters to the buffer
+            if [[ $user_key == [[:print:]] ]]; then
+                BUFFER="${BUFFER}${user_key}"
+                CURSOR=${#BUFFER}
+            fi
         fi
         # Then reset prompt to remove the message
         zle reset-prompt
