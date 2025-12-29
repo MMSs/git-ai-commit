@@ -37,11 +37,22 @@ _git_ai_commit_ensure_venv() {
 # Initialize the plugin
 _git_ai_commit_ensure_venv
 
-# Function to display a message at the bottom-right of the screen
+# Function to ensure there's a line below the prompt for status messages
+# This handles the case when the prompt is at the bottom of the terminal
+_git_ai_commit_ensure_status_line() {
+    # Print a newline to create space (this scrolls the terminal if at bottom)
+    printf '\n'
+    # Move cursor back up to the original prompt line
+    echoti cuu 1
+}
+
+# Function to display a message on the line below the prompt
 _git_ai_commit_display_message() {
     local message=$1
     local color=${2:-3}  # Default to yellow (3)
 
+    # Note: Assumes _git_ai_commit_ensure_status_line was called first
+    # to guarantee space exists below the prompt
     echoti sc                          # save_cursor
     echoti cud 1                       # cursor_down 1 line
     echoti cr                          # carriage_return (move to start of line)
@@ -99,6 +110,10 @@ _gcommit() {
 
         # Save current buffer and remove any trailing space
         local original_buffer=${BUFFER}
+
+        # Ensure there's a line below the prompt for status messages
+        # This handles the case when the prompt is at the bottom of the terminal
+        _git_ai_commit_ensure_status_line
 
         # Start animated loading indicator in background, suppressing job control messages
         setopt local_options no_notify no_monitor
@@ -177,12 +192,14 @@ _gcommit() {
             fi
         fi
 
-        # Wait up to 5 seconds, but allow any keypress to interrupt
+        # Wait up to 3 seconds, but allow any keypress to interrupt
         local user_key
-        if read -t 5 -k 1 user_key 2>/dev/null; then
-            # User pressed a key, put it back in the buffer
-            BUFFER="${BUFFER}${user_key}"
-            CURSOR=${#BUFFER}
+        if read -t 3 -k 1 user_key 2>/dev/null; then
+            # Only add printable characters to the buffer
+            if [[ $user_key == [[:print:]] ]]; then
+                BUFFER="${BUFFER}${user_key}"
+                CURSOR=${#BUFFER}
+            fi
         fi
         # Then reset prompt to remove the message
         zle reset-prompt
