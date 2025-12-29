@@ -1,0 +1,132 @@
+# Git AI Commit - Default Configuration
+# This file defines the default settings for AI-powered commit message generation
+
+# Commit message suggestion settings
+suggestion:
+  # Convention to use: conventional, gitmoji, or traditional
+  convention: conventional
+  # Format: single-line or multi-line
+  format: multi-line
+  # Maximum characters per line
+  max_length_per_line: 72
+
+# OpenAI API settings
+# Available models:
+#   - gpt-5-nano (fastest/cheapest)
+#   - gpt-5-mini (balanced)
+#   - gpt-5.2 (most capable)
+#   - gpt-4.1, gpt-4.1-nano, gpt-4.1-mini (previous generation)
+#   - o4-mini, o3-mini (reasoning models, no temperature support)
+openai:
+  model: gpt-5-nano
+
+  # Temperature: Only used for older models (gpt-4.x)
+  # GPT-5 and reasoning models (o1, o3, o4) ignore this setting
+  temperature: 0.7
+
+  # Max tokens: 0 = no limit (recommended for gpt-5/reasoning models)
+  # Set to a positive number (e.g., 1000) to limit API costs
+  # Note: gpt-5 models use internal reasoning tokens, so they need higher limits than older models
+  max_tokens: 0
+
+  # Reasoning effort: Controls reasoning depth for o-series (o1/o3/o4) and gpt-5 models
+  # Options: none (gpt-5.1+), low, medium, high, xhigh (gpt-5.2)
+  # Ignored for unsupported models
+  reasoning_effort: low
+
+# Context settings - control what information is included in the prompt
+context:
+  # Maximum input tokens to use for context (budget for API call)
+  max_input_tokens: 6000
+
+  # Include recent commit history for context
+  include_commit_history: true
+
+  # Number of recent commits to include when history is enabled
+  commit_history_count: 5
+
+  # Use smart file filtering (changed files + key project files) instead of full tree
+  smart_file_filtering: true
+
+  # Maximum lines to extract from README for project context
+  readme_excerpt_lines: 30
+
+  # Automatically detect tech stack from package files
+  detect_tech_stack: true
+
+  # Extract issue references and branch type from branch name
+  analyze_branch_name: true
+
+# Diff analysis settings - what to extract from the git diff
+diff_analysis:
+  # Extract function names from diff
+  extract_functions: true
+
+  # Extract import statements from diff
+  extract_imports: true
+
+  # Include change statistics summary
+  summarize_stats: true
+
+# Caching settings
+caching:
+  # TTL for local file-based cache in minutes
+  cache_ttl_minutes: 5
+
+  # Enable OpenAI API prompt caching (reduces costs and latency)
+  enable_api_prompt_caching: true
+
+  # Enable local file-based caching for expensive operations
+  enable_local_caching: true
+
+# Convention-specific configurations
+convention_configs:
+  # Conventional Commits specification
+  conventional:
+    types:
+      - feat
+      - feat!
+      - fix
+      - fix!
+      - docs
+      - style
+      - refactor
+      - test
+      - chore
+      - perf
+      - ci
+      - build
+      - revert
+    scopes: []
+    single-line:
+      template: "<type>(<scope>): <description>"
+      example: "feat(api): add user authentication feature"
+    multi-line:
+      template: "<type>(<scope>): <description>\n\n<body>\n\n<footer>"
+      example: "feat(api): add user authentication feature\n\n- Implemented user login and registration using JWT tokens.\n- Added password hashing and validation.\n- Updated user model to include authentication fields.\n\nFixes #123\nSigned-off-by: John Doe <john.doe@example.com>"
+
+  # Gitmoji convention
+  gitmoji:
+    prefixes:
+      - "✨ feat:"
+      - "🐛 fix:"
+      - "📚 docs:"
+      - "💄 style:"
+      - "♻️ refactor:"
+      - "✅ test:"
+      - "🔧 chore:"
+    single-line:
+      template: "<prefix>: <description>"
+      example: "✨ feat: add user authentication feature"
+    multi-line:
+      template: "<prefix>: <description>\n\n<body>\n\n<footer>"
+      example: "✨ feat: add user authentication feature\n\n- Implemented user login and registration using JWT tokens.\n- Added password hashing and validation.\n- Updated user model to include authentication fields.\n\nFixes #123\nSigned-off-by: John Doe <john.doe@example.com>"
+
+  # Traditional commit messages
+  traditional:
+    single-line:
+      template: "<description>"
+      example: "Add user authentication feature"
+    multi-line:
+      template: "<description>\n\n<body>"
+      example: "Add user authentication feature\n\n- Implemented user login and registration using JWT tokens.\n- Added password hashing and validation.\n- Updated user model to include authentication fields."

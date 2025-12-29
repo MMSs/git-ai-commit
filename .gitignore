@@ -20,7 +20,7 @@ __pycache__/
 *.log
 
 # Config
-.git-ai-commit.json
+.git-ai-commit.yaml
 
 # OS specific
 .DS_Store

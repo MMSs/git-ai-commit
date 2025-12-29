@@ -109,9 +109,11 @@ deactivate
 
 Config precedence (later overrides earlier):
 
-1. `DEFAULT_CONFIG` in src/git_ai_commit.py:154-231
-2. `~/.config/git-ai-commit/config.json` (global)
-3. `.git-ai-commit.json` in repo root (project-specific)
+1. `DEFAULT_CONFIG` loaded from config/default_config.yaml
+2. `~/.config/git-ai-commit/config.yaml` or `config.yml` (global)
+3. `.git-ai-commit.yaml` or `.git-ai-commit.yml` in repo root (project-specific)
+
+Note: JSON configs (`.json`) are still supported for backward compatibility but are not documented. YAML configs take precedence when both exist.
 
 Key config sections:
 
@@ -166,8 +168,8 @@ Temperature is conditionally set based on model (src/git_ai_commit.py:1052-1057)
 
 User configs:
 
-- `~/.config/git-ai-commit/config.json` (global settings)
-- `.git-ai-commit.json` (project-specific overrides)
+- `~/.config/git-ai-commit/config.yaml` (or `.yml`) (global settings)
+- `.git-ai-commit.yaml` (or `.yml`) (project-specific overrides)
 
 Runtime data:
 
