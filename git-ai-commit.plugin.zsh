@@ -176,6 +176,8 @@ _gcommit() {
             wait $loading_pid 2>/dev/null
             _git_ai_commit_clear_message
             rm -f "$temp_file" "$error_file" 2>/dev/null
+            unset GIT_AI_COMMIT_MODE
+            unset GIT_AI_COMMIT_PARTIAL_TEXT
         }
 
         # Generate commit message with streaming output
