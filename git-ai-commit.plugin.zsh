@@ -224,6 +224,17 @@ _gcommit() {
         local error_msg=$(cat "$error_file")
         rm "$temp_file" "$error_file"
 
+        # Sanitize suggestion to prevent command injection
+        # Escape characters that could break out of double-quoted string context
+        # This is critical since suggestion is injected directly into BUFFER
+        if [[ -n "$suggestion" ]]; then
+            # Must escape backslash first, then other special characters
+            suggestion="${suggestion//\\/\\\\}"     # Backslash: \ → \\
+            suggestion="${suggestion//\"/\\\"}"     # Double quote: " → \"
+            suggestion="${suggestion//\$/\\\$}"     # Dollar sign: $ → \$
+            suggestion="${suggestion//\`/\\\`}"     # Backtick: ` → \`
+        fi
+
         # Clean up environment variables
         unset GIT_AI_COMMIT_MODE
         unset GIT_AI_COMMIT_PARTIAL_TEXT

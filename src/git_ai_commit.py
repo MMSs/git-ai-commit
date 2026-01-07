@@ -1191,6 +1191,16 @@ Do NOT use: markdown, code blocks, backticks, or double quotes.
             response = await self.client.chat.completions.create(**api_params)
 
             suggestion = response.choices[0].message.content or ""
+
+            # Validate completion mode responses: AI might return full message instead of continuation
+            if self.mode == "completion" and self.partial_text:
+                # Strip the partial text if AI included it in the response
+                if suggestion.startswith(self.partial_text):
+                    suggestion = suggestion[len(self.partial_text):]
+                # Handle case where AI strips leading/trailing whitespace from partial text
+                elif suggestion.startswith(self.partial_text.strip()):
+                    suggestion = suggestion[len(self.partial_text.strip()):]
+
             print_output(f"{suggestion}")
 
             return suggestion
