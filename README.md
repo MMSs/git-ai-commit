@@ -114,6 +114,59 @@ git add .
 
 3. If you didn't like the suggestion, delete the message and hit TAB again to generate a new suggestion
 
+## Message Completion Mode
+
+In addition to generating complete commit messages, you can start typing your own message and press TAB to have AI continue from where you left off. This is perfect when you want to establish the message structure yourself but need help completing it.
+
+### How It Works
+
+**Generation Mode** (complete message):
+```bash
+git commit -m <TAB>
+# AI generates: git commit -m "feat: add user authentication with JWT tokens"
+```
+
+**Completion Mode** (partial message):
+```bash
+# You start typing
+git commit -m "feat(auth): this feature introduces <TAB>
+# AI continues: git commit -m "feat(auth): this feature introduces secure JWT-based authentication for API endpoints
+
+# Press TAB again to continue
+<TAB>
+# AI extends: git commit -m "feat(auth): this feature introduces secure JWT-based authentication for API endpoints with refresh token support
+
+# Close quote when satisfied
+"
+```
+
+### Key Features
+
+- **Style Matching**: AI automatically matches your writing style and convention, ignoring your configured convention setting
+- **Iterative Completion**: Press TAB multiple times to progressively build your message
+- **No Quote Required**: Start typing with just `git commit -m "your text` - the quote stays open after each completion
+- **Works with Aliases**: Compatible with all git aliases (`gcmsg`, `gc`, etc.)
+
+### Examples
+
+**Conventional Commits**:
+```bash
+git commit -m "fix(api): resolve issue with <TAB>
+# → git commit -m "fix(api): resolve issue with rate limiting in payment endpoints
+```
+
+**Gitmoji Style**:
+```bash
+git commit -m "✨ Add new <TAB>
+# → git commit -m "✨ Add new dashboard component with real-time analytics
+```
+
+**Custom Style**:
+```bash
+git commit -m "Update README to include <TAB>
+# → git commit -m "Update README to include installation instructions and usage examples
+```
+
 ## Git Hook Integration
 
 You can use a `prepare-commit-msg` hook to automatically generate commit messages when running `git commit` (without a message). This works with any tool that uses Git's standard commit flow.
