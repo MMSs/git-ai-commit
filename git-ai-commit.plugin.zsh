@@ -102,17 +102,55 @@ _git_ai_commit_clear_message() {
 
 # Function to handle git commit message generation
 _gcommit() {
+    # Only trigger if cursor is at end of line
+    if [[ $CURSOR -ne ${#BUFFER} ]]; then
+        zle expand-or-complete
+        return
+    fi
+
     local cmd=$BUFFER
     # Check if the command is an alias and expand it
     if a=$(alias ${BUFFER%% *} 2>/dev/null); then
-        cmd=${a#*=}
-        cmd=${cmd//\'/}
-        cmd=${cmd//\"/}
-        cmd="$cmd "
+        local expanded_alias=${a#*=}
+        expanded_alias=${expanded_alias//\'/}
+        expanded_alias=${expanded_alias//\"/}
+        # Check if there are arguments after the alias
+        if [[ $BUFFER == *" "* ]]; then
+            local rest_of_cmd="${BUFFER#* }"
+            cmd="$expanded_alias $rest_of_cmd"
+        else
+            cmd="$expanded_alias"
+        fi
     fi
 
-    # Check if the command is a git commit with -m/--message flag and doesn't already have a complete message
-    if [[ $cmd =~ ^git\ commit.*(-m|--message)\  && ! $BUFFER =~ \".*\" ]]; then
+    # Quote state detection for two-mode system:
+    # - Generation mode: git commit -m (no quotes)
+    # - Completion mode: git commit -m "partial text (unclosed quote)
+    local mode=""
+    local partial_text=""
+    local after_flag=""
+
+    # Extract portion after -m or --message flag (use .* for greedy matching to get last -m)
+    if [[ $cmd =~ (-m|--message)[[:space:]]+(.*) ]]; then
+        after_flag="${match[2]}"
+    fi
+
+    # Detect quote state and mode
+    if [[ -z "$after_flag" ]]; then
+        # No argument after -m flag → generation mode
+        mode="generation"
+    elif [[ $after_flag =~ ^\"([^\"]*)$ ]]; then
+        # Unclosed quote → completion mode
+        mode="completion"
+        partial_text="${match[1]}"
+    else
+        # Closed quote or other pattern → don't trigger, use normal TAB
+        zle expand-or-complete
+        return
+    fi
+
+    # Check if this is a git commit command with -m or --message
+    if [[ $cmd =~ ^git\ commit.*(-m|--message) && -n "$mode" ]]; then
         # Disable autosuggestions temporarily to avoid conflicts
         if zle -l | grep -q autosuggest-disable; then
             zle autosuggest-disable
@@ -149,6 +187,12 @@ _gcommit() {
         # Set up trap to catch Ctrl+C (SIGINT) and SIGTERM and clean up
         trap '_cleanup_loading; return 1' INT TERM
 
+        # Export environment variables for Python script to detect mode and partial text
+        export GIT_AI_COMMIT_MODE="$mode"
+        if [[ "$mode" == "completion" ]]; then
+            export GIT_AI_COMMIT_PARTIAL_TEXT="$partial_text"
+        fi
+
         # Use uv run if uv is available and venv exists, otherwise use traditional activation
         if command -v uv &>/dev/null && [[ -d "${PLUGIN_DIR}/.venv" ]]; then
             (
@@ -178,17 +222,27 @@ _gcommit() {
         local error_msg=$(cat "$error_file")
         rm "$temp_file" "$error_file"
 
+        # Clean up environment variables
+        unset GIT_AI_COMMIT_MODE
+        unset GIT_AI_COMMIT_PARTIAL_TEXT
+
         # Clear the loading indicator
         _git_ai_commit_clear_message
 
         # If we got a suggestion, update the command line
         if [[ $exit_status -eq 0 && -n "$suggestion" ]]; then
-            BUFFER="${original_buffer/% /} \"${suggestion}\""
+            if [[ "$mode" == "completion" ]]; then
+                # Completion mode: append to existing buffer, leave quote open
+                BUFFER="${BUFFER}${suggestion}"
+                _git_ai_commit_display_message "✓ Commit message continued" 2
+            else
+                # Generation mode: wrap in quotes (current behavior)
+                BUFFER="${original_buffer/% /} \"${suggestion}\""
+                _git_ai_commit_display_message "✓ Commit message generated" 2
+            fi
             CURSOR=${#BUFFER}
             # Reset prompt to print the generated commit message
             zle reset-prompt
-            # Display success indicator briefly
-            _git_ai_commit_display_message "✓ Commit message generated" 2
         else
             # On error, restore original buffer and display error
             BUFFER=$original_buffer

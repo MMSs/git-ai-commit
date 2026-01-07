@@ -184,6 +184,11 @@ class GitAICommit:
             raise ValueError("OPENAI_API_KEY environment variable is not set")
         self.client = AsyncOpenAI(api_key=api_key)
 
+        # Detect mode and partial text from environment variables
+        # Mode can be "generation" (default) or "completion"
+        self.mode = os.getenv("GIT_AI_COMMIT_MODE", "generation")
+        self.partial_text = os.getenv("GIT_AI_COMMIT_PARTIAL_TEXT", "")
+
         # Initialize cache manager
         cache_config = self.config.get("caching", {})
         self.cache_enabled = cache_config.get("enable_local_caching", True)
@@ -927,6 +932,56 @@ Do NOT use:
 
 Generate only the commit message. No explanations or additional text."""
 
+    def _build_completion_prompt(self, diff: str, partial_text: str) -> tuple[str, str]:
+        """Build prompts for completion mode.
+
+        In completion mode, the AI must:
+        1. Match the user's existing style (ignore configured conventions)
+        2. Continue naturally from the partial text
+        3. Return ONLY the continuation (not the full message)
+
+        Args:
+            diff: The git diff output.
+            partial_text: User's partial commit message.
+
+        Returns:
+            Tuple of (system_prompt, user_prompt).
+        """
+        dynamic_context = self._build_dynamic_context(diff)
+
+        system_prompt = f"""You are a Git commit message completion assistant.
+
+Your task is to CONTINUE a partially-written commit message, matching the user's existing style and tone.
+
+CRITICAL RULES:
+1. Match the user's style EXACTLY (do not reformat or change convention)
+2. Return ONLY the continuation text (not the full message)
+3. Continue naturally from where the user left off
+4. Use plain text only (no markdown, code blocks, or quotes)
+5. If the partial text ends with a space, start with content; if not, consider whether to add a space
+6. Max line length: {self.config["suggestion"]["max_length_per_line"]} characters (consider breaking into multiple lines if needed)
+
+Output format: Plain text continuation only."""
+
+        # Determine if we need to add leading space
+        needs_space_hint = ""
+        if partial_text and not partial_text.endswith((' ', '\n', ':', '-', '(', ',')):
+            needs_space_hint = "\nNote: The partial text doesn't end with punctuation or space. Consider if you need to add a space before continuing."
+
+        user_prompt = f"""Complete this partial commit message:
+
+PARTIAL MESSAGE:
+\"\"\"
+{partial_text if partial_text else "(empty - user just opened quote)"}
+\"\"\"
+{needs_space_hint}
+
+{dynamic_context}
+
+Generate ONLY the continuation that should be added after the partial message. Do not repeat the partial message in your output."""
+
+        return system_prompt, user_prompt
+
     def _build_prompt(self, diff: str, context: Dict[str, Any]) -> str:
         """Build the combined prompt (legacy compatibility).
 
@@ -1021,14 +1076,20 @@ Do NOT use: markdown, code blocks, backticks, or double quotes.
             cache_config = self.config.get("caching", {})
             use_prompt_caching = cache_config.get("enable_api_prompt_caching", True)
 
-            if use_prompt_caching:
-                # Use static/dynamic separation for OpenAI prompt caching
+            # Branch on mode: completion vs generation
+            if self.mode == "completion":
+                # Completion mode: match user's style, don't use convention configs
+                # Note: Completion mode doesn't benefit from static context caching
+                # because the partial text makes each request unique
+                system_prompt, user_prompt = self._build_completion_prompt(diff, self.partial_text)
+            elif use_prompt_caching:
+                # Generation mode with caching
                 # System message with static context (cached by OpenAI)
                 system_prompt = self._build_system_prompt()
                 # User message with dynamic context (changes per commit)
                 user_prompt = self._build_user_prompt(diff)
             else:
-                # Legacy mode: single combined prompt
+                # Generation mode without caching (legacy)
                 system_prompt = "You are a Git commit message generator specializing in conventional commits and gitmoji formats."
                 user_prompt = self._build_prompt(diff, self.get_repo_context())
 
