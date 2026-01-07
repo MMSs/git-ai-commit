@@ -192,9 +192,11 @@ class GitAICommit:
         # Initialize cache manager
         cache_config = self.config.get("caching", {})
         self.cache_enabled = cache_config.get("enable_local_caching", True)
-        self.cache = CacheManager(
-            ttl_minutes=cache_config.get("cache_ttl_minutes", 5)
-        ) if self.cache_enabled else None
+        self.cache = (
+            CacheManager(ttl_minutes=cache_config.get("cache_ttl_minutes", 5))
+            if self.cache_enabled
+            else None
+        )
 
     def _load_config(self) -> Dict:
         """Load configuration with YAML-first strategy.
@@ -214,10 +216,16 @@ class GitAICommit:
 
         # Try project configs (YAML first, then JSON for backward compatibility)
         repo_path = self._get_repo_path()
-        for filename in [".git-ai-commit.yaml", ".git-ai-commit.yml", ".git-ai-commit.json"]:
+        for filename in [
+            ".git-ai-commit.yaml",
+            ".git-ai-commit.yml",
+            ".git-ai-commit.json",
+        ]:
             local_config_path = repo_path / filename
             if local_config_path.exists():
-                config = self._merge_config(config, self._load_config_file(local_config_path))
+                config = self._merge_config(
+                    config, self._load_config_file(local_config_path)
+                )
                 break  # Use first found, skip rest
 
         return config
@@ -237,12 +245,14 @@ class GitAICommit:
                         f"Warning: JSON config detected at {path}. "
                         f"JSON configs are deprecated and may be removed in a future version. "
                         f"Please migrate to YAML format (.yaml or .yml).",
-                        is_error=True
+                        is_error=True,
                     )
                     return json.load(f)
         except (json.JSONDecodeError, yaml.YAMLError, IOError) as e:
             # Log error but don't crash - return empty dict
-            print_output(f"Warning: Failed to load config from {path}: {e}", is_error=True)
+            print_output(
+                f"Warning: Failed to load config from {path}: {e}", is_error=True
+            )
             return {}
 
     def _merge_config(self, base: Dict, override: Dict) -> Dict:
@@ -253,7 +263,11 @@ class GitAICommit:
         """
         result = copy.deepcopy(base)
         for key, value in override.items():
-            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            if (
+                key in result
+                and isinstance(result[key], dict)
+                and isinstance(value, dict)
+            ):
                 # Recursively merge nested dictionaries
                 result[key] = self._merge_config(result[key], value)
             else:
@@ -319,7 +333,10 @@ class GitAICommit:
             try:
                 with open(package_json_path) as f:
                     pkg = json.load(f)
-                    deps = {**pkg.get("dependencies", {}), **pkg.get("devDependencies", {})}
+                    deps = {
+                        **pkg.get("dependencies", {}),
+                        **pkg.get("devDependencies", {}),
+                    }
 
                     framework_indicators = {
                         "react": "React",
@@ -368,7 +385,11 @@ class GitAICommit:
             context["branch_type"] = match.group(1)
 
         # Extract descriptive part (remove type prefix and issue numbers)
-        desc = re.sub(r"^(feature|feat|fix|bugfix|hotfix|docs|refactor|chore|release)/", "", branch)
+        desc = re.sub(
+            r"^(feature|feat|fix|bugfix|hotfix|docs|refactor|chore|release)/",
+            "",
+            branch,
+        )
         desc = re.sub(r"[#]?\d+[-_]?", "", desc)
         desc = desc.replace("-", " ").replace("_", " ").strip()
         if desc:
@@ -405,8 +426,8 @@ class GitAICommit:
             context["file_structure"] = file_struct
             # Format for backward compatibility
             context["file_structure_str"] = "\n".join(
-                file_struct.get("changed_files", []) +
-                file_struct.get("project_files", [])
+                file_struct.get("changed_files", [])
+                + file_struct.get("project_files", [])
             )
         else:
             context["file_structure_str"] = self._run_git_command(
@@ -473,9 +494,9 @@ class GitAICommit:
             Dictionary with changed_files, changed_directories, and project_files.
         """
         # Get changed files from staged changes
-        changed_files = self._run_git_command(
-            "diff", "--cached", "--name-only"
-        ).strip().split("\n")
+        changed_files = (
+            self._run_git_command("diff", "--cached", "--name-only").strip().split("\n")
+        )
         changed_files = [f for f in changed_files if f]
 
         # Get directories of changed files
@@ -484,15 +505,19 @@ class GitAICommit:
 
         # Get key project files at root
         root_patterns = [
-            "*.json", "*.toml", "*.yaml", "*.yml",
-            "Makefile", "Dockerfile", "*.md",
-            "*.lock", ".gitignore",
+            "*.json",
+            "*.toml",
+            "*.yaml",
+            "*.yml",
+            "Makefile",
+            "Dockerfile",
+            "*.md",
+            "*.lock",
+            ".gitignore",
         ]
         project_files = []
         for pattern in root_patterns:
-            files = self._run_git_command(
-                "ls-files", "--", pattern
-            ).strip().split("\n")
+            files = self._run_git_command("ls-files", "--", pattern).strip().split("\n")
             project_files.extend([f for f in files if f and "/" not in f])
 
         # Limit project files to avoid bloat
@@ -530,7 +555,13 @@ class GitAICommit:
         lines = readme.split("\n")
 
         # Priority sections to extract
-        priority_headers = ["# ", "## description", "## about", "## features", "## overview"]
+        priority_headers = [
+            "# ",
+            "## description",
+            "## about",
+            "## features",
+            "## overview",
+        ]
         relevant_lines: List[str] = []
         in_priority_section = False
 
@@ -544,8 +575,14 @@ class GitAICommit:
             elif in_priority_section:
                 # Stop at installation/usage/etc sections
                 if line_lower.startswith("## ") and any(
-                    skip in line_lower for skip in
-                    ["install", "usage", "getting started", "prerequisites", "requirements"]
+                    skip in line_lower
+                    for skip in [
+                        "install",
+                        "usage",
+                        "getting started",
+                        "prerequisites",
+                        "requirements",
+                    ]
                 ):
                     break
                 relevant_lines.append(line)
@@ -597,7 +634,9 @@ class GitAICommit:
                         stats["test_changes"] = True
                     if current_file.endswith((".md", ".rst", ".txt")):
                         stats["doc_changes"] = True
-                    if current_file.endswith((".json", ".yaml", ".yml", ".toml", ".ini", ".cfg")):
+                    if current_file.endswith(
+                        (".json", ".yaml", ".yml", ".toml", ".ini", ".cfg")
+                    ):
                         stats["config_changes"] = True
 
             elif line.startswith("+") and not line.startswith("+++"):
@@ -815,7 +854,9 @@ class GitAICommit:
             stats = self.analyze_diff_semantics(diff)
             parts.append("## Change Summary")
             parts.append(f"Files modified: {stats['files_changed']}")
-            parts.append(f"Lines added: {stats['insertions']}, removed: {stats['deletions']}")
+            parts.append(
+                f"Lines added: {stats['insertions']}, removed: {stats['deletions']}"
+            )
 
             if stats.get("test_changes"):
                 parts.append("Includes test changes: Yes")
@@ -825,7 +866,9 @@ class GitAICommit:
                 parts.append("Includes configuration changes: Yes")
 
             if stats.get("changed_files"):
-                parts.append(f"\nChanged files: {', '.join(stats['changed_files'][:10])}")
+                parts.append(
+                    f"\nChanged files: {', '.join(stats['changed_files'][:10])}"
+                )
 
         # Apply token budget to diff
         max_tokens = self.config.get("context", {}).get("max_input_tokens", 6000)
@@ -863,8 +906,7 @@ class GitAICommit:
                 )
             return convention_guide
         else:
-            raise ValueError(
-                f"No convention configuration found for {convention}")
+            raise ValueError(f"No convention configuration found for {convention}")
 
     def _build_system_prompt(self) -> str:
         """Build the system prompt with static context for API caching.
@@ -949,6 +991,22 @@ Generate only the commit message. No explanations or additional text."""
         """
         dynamic_context = self._build_dynamic_context(diff)
 
+        # Build format constraint based on configuration
+        format_constraint = ""
+        if self.config["suggestion"]["format"] == "single-line":
+            format_constraint = "Keep the continuation on a SINGLE LINE (no newlines)"
+        else:  # multi-line
+            format_constraint = (
+                "You may use multiple lines if needed to properly complete the message"
+            )
+
+        # Calculate remaining length on current line
+        # For multi-line partial text, only consider the last line
+        partial_lines = partial_text.split("\n") if partial_text else [""]
+        current_line_length = len(partial_lines[-1])
+        max_line_length = self.config["suggestion"]["max_length_per_line"]
+        remaining_length = max_line_length - current_line_length
+
         system_prompt = f"""You are a Git commit message completion assistant.
 
 Your task is to CONTINUE a partially-written commit message, matching the user's existing style and tone.
@@ -959,13 +1017,17 @@ CRITICAL RULES:
 3. Continue naturally from where the user left off
 4. Use plain text only (no markdown, code blocks, or quotes)
 5. If the partial text ends with a space, start with content; if not, consider whether to add a space
-6. Max line length: {self.config["suggestion"]["max_length_per_line"]} characters (consider breaking into multiple lines if needed)
+6. Max line length: {max_line_length} characters
+   - The partial text already has {current_line_length} characters on the current line
+   - You have approximately {remaining_length} characters remaining on this line
+   - If you need more space, break to a new line
+7. Format: {format_constraint}
 
 Output format: Plain text continuation only."""
 
         # Determine if we need to add leading space
         needs_space_hint = ""
-        if partial_text and not partial_text.endswith((' ', '\n', ':', '-', '(', ',')):
+        if partial_text and not partial_text.endswith((" ", "\n", ":", "-", "(", ",")):
             needs_space_hint = "\nNote: The partial text doesn't end with punctuation or space. Consider if you need to add a space before continuing."
 
         user_prompt = f"""Complete this partial commit message:
@@ -1004,8 +1066,7 @@ Generate ONLY the continuation that should be added after the partial message. D
         if not file_structure and isinstance(context.get("file_structure"), dict):
             fs = context["file_structure"]
             file_structure = "\n".join(
-                fs.get("changed_files", [])[:20] +
-                fs.get("project_files", [])[:10]
+                fs.get("changed_files", [])[:20] + fs.get("project_files", [])[:10]
             )
 
         # Format tech stack
@@ -1081,7 +1142,9 @@ Do NOT use: markdown, code blocks, backticks, or double quotes.
                 # Completion mode: match user's style, don't use convention configs
                 # Note: Completion mode doesn't benefit from static context caching
                 # because the partial text makes each request unique
-                system_prompt, user_prompt = self._build_completion_prompt(diff, self.partial_text)
+                system_prompt, user_prompt = self._build_completion_prompt(
+                    diff, self.partial_text
+                )
             elif use_prompt_caching:
                 # Generation mode with caching
                 # System message with static context (cached by OpenAI)
@@ -1113,7 +1176,9 @@ Do NOT use: markdown, code blocks, backticks, or double quotes.
             # - GPT-5 series: only default (1) supported
             no_temp_models = ("o1", "o3", "o4", "gpt-5")
             if not any(model.startswith(prefix) for prefix in no_temp_models):
-                api_params["temperature"] = self.config["openai"].get("temperature", 0.7)
+                api_params["temperature"] = self.config["openai"].get(
+                    "temperature", 0.7
+                )
 
             # Reasoning effort parameter for o-series and GPT-5 models
             # Valid values: "none" (gpt-5.1+), "low", "medium", "high", "xhigh" (gpt-5.2)
@@ -1126,7 +1191,7 @@ Do NOT use: markdown, code blocks, backticks, or double quotes.
             response = await self.client.chat.completions.create(**api_params)
 
             suggestion = response.choices[0].message.content or ""
-            print_output(f'{suggestion}')
+            print_output(f"{suggestion}")
 
             return suggestion
 
