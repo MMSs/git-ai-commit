@@ -123,6 +123,34 @@ _gcommit() {
         fi
     fi
 
+    # Handle git push: append current branch name when cursor sits after
+    # `(-u|--set-upstream|--no-set-upstream) <valid-remote>` (with optional trailing space).
+    if [[ $cmd =~ ^git[[:space:]]+push[[:space:]] ]]; then
+        if [[ $cmd =~ (^|[[:space:]])(-u|--set-upstream|--no-set-upstream)[[:space:]]+([^[:space:]]+)[[:space:]]*$ ]]; then
+            local push_remote="${match[3]}"
+            if git remote 2>/dev/null | grep -qx -- "$push_remote"; then
+                local push_branch
+                push_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+                if [[ -n "$push_branch" && "$push_branch" != "HEAD" ]]; then
+                    BUFFER="${BUFFER/% /} ${push_branch}"
+                    CURSOR=${#BUFFER}
+                    _git_ai_commit_ensure_status_line
+                    _git_ai_commit_display_message "✓ Branch: ${push_branch}" 2
+                    zle reset-prompt
+                    local user_key
+                    if read -t 3 -k 1 user_key 2>/dev/null; then
+                        if [[ $user_key == [[:print:]] ]]; then
+                            BUFFER="${BUFFER}${user_key}"
+                            CURSOR=${#BUFFER}
+                        fi
+                    fi
+                    zle reset-prompt
+                    return
+                fi
+            fi
+        fi
+    fi
+
     # Quote state detection for two-mode system:
     # - Generation mode: git commit -m (no quotes)
     # - Completion mode: git commit -m "partial text (unclosed quote)
