@@ -34,7 +34,7 @@ trap cleanup EXIT INT TERM
 # Generate AI commit message
 # Prefer uv if available for faster execution, otherwise use traditional venv activation
 if command -v uv &>/dev/null && [ -d "$PLUGIN_DIR/.venv" ]; then
-    MSG=$(uv run --project "$PLUGIN_DIR" python "$PLUGIN_DIR/src/git_ai_commit.py" 2>&1)
+    MSG=$(unset VIRTUAL_ENV; uv run --project "$PLUGIN_DIR" python "$PLUGIN_DIR/src/git_ai_commit.py" 2>&1)
     EXIT_CODE=$?
 else
     MSG=$(
