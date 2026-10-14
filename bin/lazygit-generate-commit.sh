@@ -21,6 +21,11 @@ set -euo pipefail
 
 # Configuration
 PLUGIN_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/git-ai-commit"
+if [[ ! -x "$PLUGIN_DIR/.venv/bin/python" ]]; then
+    echo "git-ai-commit environment missing. Initialize the zsh plugin, or run:" >&2
+    printf 'UV_PROJECT_ENVIRONMENT="%s/.venv" uv sync --project "%s" --no-dev --locked\n' "$PLUGIN_DIR" "$PLUGIN_DIR" >&2
+    exit 1
+fi
 TEMP_COMMIT_MSG=$(mktemp .git/COMMIT_EDITMSG.XXXXXX)
 
 # Cleanup function for temporary files

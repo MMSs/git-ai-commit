@@ -65,3 +65,23 @@ def test_lazygit_uses_plugin_interpreter(tmp_path, generation_status) -> None:
     )
     assert not forbidden_calls.exists()
     assert not list((repo_dir / ".git").glob("COMMIT_EDITMSG.*"))
+
+
+def test_lazygit_missing_environment_gives_setup_command(tmp_path) -> None:
+    result = subprocess.run(
+        [
+            "/bin/bash",
+            str(Path(__file__).parents[1] / "bin" / "lazygit-generate-commit.sh"),
+        ],
+        cwd=tmp_path,
+        env={**os.environ, "ZSH_CUSTOM": str(tmp_path / "custom")},
+        input="\n",
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert "environment" in result.stderr
+    assert "uv sync" in result.stderr
+    assert "No such file" not in result.stderr
+    assert "mktemp" not in result.stderr
