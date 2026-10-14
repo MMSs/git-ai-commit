@@ -13,6 +13,8 @@ import sys
 
 from openai import AsyncOpenAI
 
+from model_compatibility import model_parameters
+
 
 def print_output(message: str, is_error: bool = False) -> None:
     """Print output with space injection and optional error formatting.
@@ -1157,36 +1159,13 @@ Do NOT use: markdown, code blocks, backticks, or double quotes.
                 user_prompt = self._build_prompt(diff, self.get_repo_context())
 
             # Build API parameters
-            model = self.config["openai"]["model"]
             api_params: Dict[str, Any] = {
-                "model": model,
+                **model_parameters(self.config["openai"]),
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
             }
-
-            # Only set max_completion_tokens if explicitly configured (0 = no limit)
-            max_tokens = self.config["openai"].get("max_tokens", 0)
-            if max_tokens > 0:
-                api_params["max_completion_tokens"] = max_tokens
-
-            # Some models don't support custom temperature
-            # - Reasoning models (o1, o3, o4): no temperature support
-            # - GPT-5 series: only default (1) supported
-            no_temp_models = ("o1", "o3", "o4", "gpt-5")
-            if not any(model.startswith(prefix) for prefix in no_temp_models):
-                api_params["temperature"] = self.config["openai"].get(
-                    "temperature", 0.7
-                )
-
-            # Reasoning effort parameter for o-series and GPT-5 models
-            # Valid values: "none" (gpt-5.1+), "low", "medium", "high", "xhigh" (gpt-5.2)
-            reasoning_effort = self.config["openai"].get("reasoning_effort")
-            if reasoning_effort:
-                reasoning_models = ("o1", "o3", "o4", "gpt-5")
-                if any(model.startswith(prefix) for prefix in reasoning_models):
-                    api_params["reasoning_effort"] = reasoning_effort
 
             response = await self.client.chat.completions.create(**api_params)
 
@@ -1196,10 +1175,10 @@ Do NOT use: markdown, code blocks, backticks, or double quotes.
             if self.mode == "completion" and self.partial_text:
                 # Strip the partial text if AI included it in the response
                 if suggestion.startswith(self.partial_text):
-                    suggestion = suggestion[len(self.partial_text):]
+                    suggestion = suggestion[len(self.partial_text) :]
                 # Handle case where AI strips leading/trailing whitespace from partial text
                 elif suggestion.startswith(self.partial_text.strip()):
-                    suggestion = suggestion[len(self.partial_text.strip()):]
+                    suggestion = suggestion[len(self.partial_text.strip()) :]
 
             print_output(f"{suggestion}")
 
