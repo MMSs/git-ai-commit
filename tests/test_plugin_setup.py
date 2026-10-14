@@ -162,12 +162,17 @@ def test_failed_refresh_keeps_existing_environment(setup_harness, uv_available) 
     assert h["calls"].read_text().count("call\n") == 1
     assert "--retry" in first.stderr
     assert "reload" in first.stderr.lower()
+    assert shlex.split(first.stderr.split("source ", 1)[1].strip()) == [
+        str(h["plugin"] / "git-ai-commit.plugin.zsh"),
+    ]
     assert not (h["plugin"] / ".venv" / ".git-ai-commit-ready").exists()
     h["status"].write_text("0\n")
     repaired = h["run"](retry=True)
     assert repaired.returncode == 0
     assert "reload" in repaired.stderr.lower()
-    assert 'source "$PLUGIN_DIR/git-ai-commit.plugin.zsh"' in repaired.stderr
+    assert shlex.split(repaired.stderr.split("source ", 1)[1].strip()) == [
+        str(h["plugin"] / "git-ai-commit.plugin.zsh"),
+    ]
     assert h["run"]().returncode == 0
     assert h["calls"].read_text().count("call\n") == 2
 
@@ -181,8 +186,16 @@ def test_failed_fresh_install_requires_explicit_retry(
         h["uv"].unlink()
     h["status"].write_text("1\n")
 
-    assert h["run"]().returncode == 1
-    assert h["run"]().returncode == 1
+    blocked = h["run"]()
+    assert blocked.returncode == 1
+    assert shlex.split(blocked.stderr.split("source ", 1)[1].strip()) == [
+        str(h["plugin"] / "git-ai-commit.plugin.zsh"),
+    ]
+    cached = h["run"]()
+    assert cached.returncode == 1
+    assert shlex.split(cached.stderr.split("source ", 1)[1].strip()) == [
+        str(h["plugin"] / "git-ai-commit.plugin.zsh"),
+    ]
     assert h["calls"].read_text().count("call\n") == 1
     assert h["run"](retry=True).returncode == 1
     assert h["calls"].read_text().count("call\n") == 2

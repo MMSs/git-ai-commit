@@ -56,7 +56,7 @@ _git_ai_commit_ensure_venv() {
             fi
             if [[ $attempt_is_recent -eq 1 ]]; then
                 [[ $fallback_environment -eq 1 ]] && return 0
-                echo 'git-ai-commit setup needs retry: _git_ai_commit_ensure_venv --retry; then reload with: source "$PLUGIN_DIR/git-ai-commit.plugin.zsh"' >&2
+                print -r -- "git-ai-commit setup needs retry: _git_ai_commit_ensure_venv --retry; then reload with: source ${(q)PLUGIN_DIR}/git-ai-commit.plugin.zsh" >&2
                 return 1
             fi
         elif [[ -x "$venv_dir/bin/python" && -f "$ready_marker" ]] && \
@@ -90,13 +90,13 @@ _git_ai_commit_ensure_venv() {
         print -r -- "$setup_fingerprint" > "$ready_marker" || return 1
         : > "$attempt_marker"
         if [[ "${1:-}" == "--retry" ]]; then
-            echo 'git-ai-commit setup repaired. Reload plugin to enable TAB: source "$PLUGIN_DIR/git-ai-commit.plugin.zsh"' >&2
+            print -r -- "git-ai-commit setup repaired. Reload plugin to enable TAB: source ${(q)PLUGIN_DIR}/git-ai-commit.plugin.zsh" >&2
         fi
         return 0
     fi
     # Reset the daily retry window when installation finishes, including failures.
     print -r -- "$attempt_mode:$setup_fingerprint" > "$attempt_marker"
-    echo 'git-ai-commit setup failed; retry when online: _git_ai_commit_ensure_venv --retry; then reload with: source "$PLUGIN_DIR/git-ai-commit.plugin.zsh"' >&2
+    print -r -- "git-ai-commit setup failed; retry when online: _git_ai_commit_ensure_venv --retry; then reload with: source ${(q)PLUGIN_DIR}/git-ai-commit.plugin.zsh" >&2
     # Keep a runnable existing environment available after a failed refresh.
     [[ $fallback_environment -eq 1 && -x "$venv_dir/bin/python" ]] && return 0
     return 1
