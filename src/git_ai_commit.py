@@ -13,7 +13,7 @@ import sys
 
 from openai import AsyncOpenAI
 
-from model_compatibility import model_parameters
+from git_ai_commit_models import model_parameters
 
 
 def print_output(message: str, is_error: bool = False) -> None:

@@ -1,4 +1,4 @@
-"""Normalize commit-generation parameters for supported OpenAI models."""
+"""Normalize OpenAI model parameters for git-ai-commit."""
 
 import re
 from dataclasses import dataclass
@@ -85,12 +85,19 @@ def model_parameters(config: dict[str, Any]) -> dict[str, Any]:
         # Only established non-reasoning families receive sampling parameters.
         # Future GPT/o-series models and chat aliases retain conservative defaults.
         use_temperature = bool(
-            re.match(r"^gpt-(?:4(?:[.-]|$)|3\.5(?:-|$))", alias)
+            re.match(r"^gpt-(?:4(?:o(?:-|$)|[.-]|$)|3\.5(?:-|$))", alias)
             or alias == "chatgpt-4o-latest"
         )
     if use_temperature:
         params["temperature"] = config.get("temperature", 0.7)
     max_tokens = config.get("max_tokens") or 0
+    if isinstance(max_tokens, str):
+        try:
+            max_tokens = int(max_tokens.strip() or "0")
+        except ValueError as exc:
+            raise ValueError("max_tokens must be an integer or empty.") from exc
+    if not isinstance(max_tokens, int) or isinstance(max_tokens, bool):
+        raise ValueError("max_tokens must be an integer or empty.")
     if max_tokens > 0:
         params["max_completion_tokens"] = max_tokens
     return params

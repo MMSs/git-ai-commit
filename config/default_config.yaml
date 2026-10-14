@@ -26,6 +26,7 @@ openai:
 
   # Max tokens: 0 = use the model's output limit
   # Set to a positive number (e.g., 1000) to limit API costs
+  # Integer strings (e.g., "1000") are also accepted.
   # Sent as max_completion_tokens, including reasoning and visible output tokens.
   max_tokens: 0
 

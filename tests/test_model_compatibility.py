@@ -10,7 +10,7 @@ import pytest
 from openai import AsyncOpenAI
 
 from git_ai_commit import GitAICommit
-from model_compatibility import model_parameters
+from git_ai_commit_models import model_parameters
 
 
 def make_committer(model: str, effort: object, mode: str = "generation") -> GitAICommit:
@@ -70,6 +70,10 @@ def make_committer(model: str, effort: object, mode: str = "generation") -> GitA
         ("gpt-6-luna", None, None, False),
         ("gpt-6-astra", None, None, False),
         ("gpt-4.1", "none", None, True),
+        ("gpt-4o", "none", None, True),
+        ("gpt-4o-mini", "none", None, True),
+        ("gpt-4o-2024-08-06", "none", None, True),
+        ("gpt-4o-mini-2024-07-18", "none", None, True),
         ("o3-mini", "none", "low", False),
     ],
 )
@@ -141,6 +145,19 @@ async def test_disabled_effort_is_omitted(model, effort) -> None:
 
 def test_missing_effort_is_omitted() -> None:
     assert model_parameters({"model": "gpt-6-luna"}) == {"model": "gpt-6-luna"}
+
+
+@pytest.mark.parametrize("limit", [500, "500", " 500 "])
+def test_numeric_token_limits(limit) -> None:
+    params = model_parameters({"model": "gpt-6-luna", "max_tokens": limit})
+    assert params["max_completion_tokens"] == 500
+    assert type(params["max_completion_tokens"]) is int
+
+
+@pytest.mark.parametrize("limit", ["many", "500.5", 500.5, True])
+def test_invalid_token_limits_have_clear_error(limit) -> None:
+    with pytest.raises(ValueError, match="max_tokens"):
+        model_parameters({"model": "gpt-6-luna", "max_tokens": limit})
 
 
 @pytest.mark.parametrize("effort", ["low", "none"])

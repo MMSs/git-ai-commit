@@ -62,6 +62,8 @@ def test_wheel_entry_point_loads_outside_source_tree(tmp_path) -> None:
     assert "Default configuration file not found" not in result.stderr
     wheel_dir = tmp_path / "installed"
     with zipfile.ZipFile(wheel_path) as wheel:
+        assert "git_ai_commit_models.py" in wheel.namelist()
+        assert "model_compatibility.py" not in wheel.namelist()
         wheel.extractall(wheel_dir)
     result = subprocess.run(
         [
@@ -70,9 +72,9 @@ def test_wheel_entry_point_loads_outside_source_tree(tmp_path) -> None:
             "-c",
             "import sys; from pathlib import Path; "
             "sys.path.insert(0, sys.argv[1]); "
-            "import git_ai_commit, model_compatibility; "
+            "import git_ai_commit, git_ai_commit_models; "
             "assert Path(git_ai_commit.__file__).parent == Path(sys.argv[1]); "
-            "assert Path(model_compatibility.__file__).parent == Path(sys.argv[1]); "
+            "assert Path(git_ai_commit_models.__file__).parent == Path(sys.argv[1]); "
             "assert git_ai_commit.DEFAULT_CONFIG['openai']['model'] == 'gpt-6-luna'; "
             "assert callable(git_ai_commit.main)",
             str(wheel_dir),
