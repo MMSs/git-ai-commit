@@ -9,8 +9,8 @@ TAB to generate a commit message.
 
 ## Features
 
-- 🤖 Uses GPT-4o to generate contextual commit messages
-- 🚀 Fast, streaming suggestions
+- 🤖 Uses GPT-6 Luna by default to generate contextual commit messages
+- 🚀 Fast suggestions with configurable reasoning effort
 - 🎯 Supports conventional commit format, gitmoji, and your own custom formats
 - ⚙️ Configurable for both global and project-specific settings
 - 🔌 Native Oh My Zsh integration
@@ -67,6 +67,10 @@ source ~/.zshrc
 
 If you prefer not to use `uv`, the plugin will automatically create a virtual environment using Python's built-in `venv` and install dependencies with `pip` on first use. Just follow steps 2, 4, 5, and 6 above.
 
+Setup requires `openai>=2.14.0` and refreshes existing environments with an older
+or missing SDK. It uses the virtual environment's Python for pip installation and
+stops initialization if installation fails.
+
 ### Updating
 
 To update the plugin:
@@ -79,6 +83,10 @@ uv sync --no-dev
 ```
 
 Then restart your terminal or reload Oh My Zsh.
+
+Existing model overrides survive updates. Check both
+`~/.config/git-ai-commit/config.yaml` and your repository's `.git-ai-commit.yaml`;
+the repository override takes precedence over global settings and shipped defaults.
 
 ## Configuration
 
@@ -95,12 +103,74 @@ suggestion:
 
 # OpenAI API settings
 openai:
-  model: gpt-5-nano
+  model: gpt-6-luna
+  reasoning_effort: none  # Lowest latency; translated automatically per model
   temperature: 0.7
-  max_tokens: 0  # 0 = no limit (recommended)
+  max_tokens: 0  # 0 = model output limit; positive limits include reasoning tokens
 ```
 
 See [config/default_config.yaml](config/default_config.yaml) for all available configuration options with detailed comments.
+
+### Recommended Models
+
+Model guidance checked against official OpenAI documentation on October 14, 2026.
+
+| Model | Suggested use | Suggested effort |
+|-------|---------------|------------------|
+| `gpt-6-luna` | Default: fast, inexpensive commit summaries and continuations | `none` |
+| `gpt-6.1-sol` | Complex changes that benefit from deeper reasoning | `low` |
+| `gpt-6-astra` | Most demanding changes when quality matters more than cost | `low` |
+| `gpt-5.4-mini` | Alternative within the GPT-5 family | `none` |
+
+These recommendations follow OpenAI's [model guidance](https://developers.openai.com/api/docs/guides/latest-model).
+GPT-4o and GPT-4.1 families are deprecated with a January 14, 2027 shutdown;
+GPT-5.4 nano is deprecated with an April 1, 2027 shutdown. Prefer GPT-6 Luna for
+migrations. See the [deprecation schedule](https://developers.openai.com/api/docs/deprecations).
+
+### API and Effort Compatibility
+
+Generation and partial-message completion both use Chat Completions without tools.
+The recommended models support this API; switching to Responses is unnecessary
+for this workflow. Tool calling has additional restrictions documented in the
+[GPT-6 migration guide](https://developers.openai.com/api/docs/guides/latest-model#update-api-and-model-parameters).
+Responses-only Pro/Codex variants and unverified GPT-5/GPT-6 aliases fail locally
+with an actionable error instead of sending guessed parameters.
+
+| Supported models | API effort values |
+|------------------|-------------------|
+| `gpt-5`, `gpt-5-mini`, `gpt-5-nano` | `minimal`, `low`, `medium`, `high` |
+| `gpt-5.1` | `none`, `low`, `medium`, `high` |
+| `gpt-5.2`, `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.4-nano`, `gpt-5.5` | `none`, `low`, `medium`, `high`, `xhigh` |
+| `gpt-5.6`, `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-6-sol`, `gpt-6-luna` | `none`, `low`, `medium`, `high`, `xhigh`, `max` |
+| `gpt-6.1-sol`, `gpt-6-astra` | `low`, `medium`, `high`, `xhigh`, `max` |
+
+Dated snapshots of listed models use the same compatibility rules while preserving
+the exact model ID sent to the API. Compatibility support does not guarantee that
+deprecated models or specific snapshots remain available to your API account.
+
+Effort translates automatically:
+
+- Supported settings remain unchanged.
+- `none` becomes `minimal` for original GPT-5, or `low` for GPT-6 Astra and GPT-6.1 Sol.
+- `minimal` becomes `low` on models that do not support it.
+- `xhigh`/`max` above a model's supported range become its highest supported effort.
+- Missing, null, or empty effort uses the lowest supported effort. Config merging
+  normally supplies the shipped `none` value when an override omits the setting.
+- Unrecognized values fail before any API call. Non-reasoning models ignore effort;
+  o-series models normalize to `low`, `medium`, or `high`.
+
+Temperature is sent for GPT-5.1+ and GPT-6 only when the translated effort is `none`.
+Original GPT-5 and o-series models omit it; non-reasoning models retain it.
+`max_tokens` is sent as `max_completion_tokens` and limits both reasoning and
+visible output. A value of `0` omits the parameter.
+
+Sources: [GPT-5](https://developers.openai.com/api/docs/models/gpt-5),
+[GPT-5.1](https://developers.openai.com/api/docs/models/gpt-5.1),
+[GPT-5.2](https://developers.openai.com/api/docs/models/gpt-5.2),
+[GPT-5.4 Mini](https://developers.openai.com/api/docs/models/gpt-5.4-mini),
+[GPT-5.5](https://developers.openai.com/api/docs/models/gpt-5.5),
+[GPT-6 Luna](https://developers.openai.com/api/docs/models/gpt-6-luna),
+and [migration guidance](https://developers.openai.com/api/docs/guides/latest-model).
 
 ## Usage
 

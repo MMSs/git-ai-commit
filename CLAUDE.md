@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Git AI Commit is an Oh My Zsh plugin that generates AI-powered Git commit messages. It intercepts TAB key presses during `git commit -m` commands, analyzes staged changes and repository context, then streams a commit message suggestion directly into the command line.
+Git AI Commit is an Oh My Zsh plugin that generates AI-powered Git commit messages. It intercepts TAB key presses during `git commit -m` commands, analyzes staged changes and repository context, then inserts a commit message suggestion into the command line.
 
 **Tech Stack**: Python 3.11+ (core logic) + Zsh (shell integration) + OpenAI API
 
@@ -52,7 +52,7 @@ deactivate
 1. **Python Layer** (`src/git_ai_commit.py`): Core logic
    - Analyzes git diffs and repository context
    - Builds prompts with static (cacheable) and dynamic context
-   - Calls OpenAI API with streaming support
+   - Calls OpenAI Chat Completions without streaming
    - Outputs commit message to stdout
 
 2. **Zsh Layer** (`git-ai-commit.plugin.zsh`): Shell integration
@@ -201,7 +201,7 @@ Note: JSON configs (`.json`) are still supported for backward compatibility but 
 Key config sections:
 
 - `suggestion`: Convention (conventional/gitmoji/traditional), format (single/multi-line), line length
-- `openai`: Model, temperature (ignored for gpt-5/reasoning models), max_tokens
+- `openai`: Model (default `gpt-6-luna`), automatically normalized `reasoning_effort`, temperature, max_tokens
 - `context`: Token budget, commit history, smart filtering, README lines, tech detection
 - `caching`: TTL, API prompt caching, local caching
 
@@ -222,7 +222,7 @@ Plugin auto-creates `.venv` on first load (git-ai-commit.plugin.zsh:14-35). Pref
 
 ### Async/Await Usage
 
-All OpenAI API calls use `AsyncOpenAI` client with `async for` streaming. Main entry point wraps with `asyncio.run()` (src/git_ai_commit.py:1075).
+OpenAI requests use `AsyncOpenAI` with non-streaming Chat Completions. Main entry point wraps with `asyncio.run()`.
 
 ### Terminal Control
 
@@ -235,11 +235,17 @@ Uses `zsh/terminfo` module for cursor positioning:
 
 ### Model Compatibility
 
-Temperature is conditionally set based on model (src/git_ai_commit.py:1052-1057):
+`src/model_compatibility.py` builds parameters shared by generation and completion:
 
-- Reasoning models (o1, o3, o4): no temperature support
-- GPT-5 series: only default temperature
-- Older models: configurable temperature
+- Default: `gpt-6-luna` with `reasoning_effort: none`.
+- Recommended alternatives: `gpt-6.1-sol`, `gpt-6-astra`, `gpt-5.4-mini`.
+- Supported effort is preserved; unsupported `none`/`minimal` maps to the lowest compatible reasoning level, and excessive effort is capped.
+- GPT-5.1+ and GPT-6 send temperature only at effective effort `none`; original GPT-5 and o-series omit it.
+- Positive `max_tokens` becomes `max_completion_tokens`, including reasoning tokens.
+- Exact supported model aliases and dated snapshots are recognized; unverified GPT-5/GPT-6 variants fail before API calls. This workflow uses Chat Completions without tools.
+- `openai>=2.14.0` is required; plugin setup refreshes missing/older SDKs and propagates installation failures.
+
+See README.md for the supported-model table and official documentation links.
 
 ## Known Limitations
 
