@@ -3,6 +3,7 @@
 import os
 import shlex
 import subprocess
+import time
 from pathlib import Path
 
 import pytest
@@ -160,9 +161,13 @@ def test_failed_refresh_keeps_existing_environment(setup_harness, uv_available) 
     assert second.returncode == 0
     assert h["calls"].read_text().count("call\n") == 1
     assert "--retry" in first.stderr
+    assert "reload" in first.stderr.lower()
     assert not (h["plugin"] / ".venv" / ".git-ai-commit-ready").exists()
     h["status"].write_text("0\n")
-    assert h["run"](retry=True).returncode == 0
+    repaired = h["run"](retry=True)
+    assert repaired.returncode == 0
+    assert "reload" in repaired.stderr.lower()
+    assert 'source "$PLUGIN_DIR/git-ai-commit.plugin.zsh"' in repaired.stderr
     assert h["run"]().returncode == 0
     assert h["calls"].read_text().count("call\n") == 2
 
@@ -197,6 +202,37 @@ def test_failed_venv_creation_is_not_repeated(setup_harness, tmp_path) -> None:
     (tmp_path / "venv-failure").unlink()
     assert h["run"](retry=True).returncode == 0
     assert h["calls"].read_text().count("call\n") == 1
+
+
+@pytest.mark.parametrize("uv_available", [True, False])
+@pytest.mark.parametrize("existing", [True, False])
+def test_failed_setup_retries_after_one_day(
+    setup_harness, uv_available, existing
+) -> None:
+    h = setup_harness
+    if existing:
+        h["seed"]()
+    if not uv_available:
+        h["uv"].unlink()
+    h["status"].write_text("1\n")
+    expected_status = 0 if existing else 1
+    assert h["run"]().returncode == expected_status
+    assert h["run"]().returncode == expected_status
+    assert h["calls"].read_text().count("call\n") == 1
+    marker = h["plugin"] / ".git-ai-commit-setup-attempt"
+    old_timestamp = time.time() - 90000
+    os.utime(marker, (old_timestamp, old_timestamp))
+
+    # A failed daily retry resets the timer instead of retrying every shell start.
+    assert h["run"]().returncode == expected_status
+    assert h["run"]().returncode == expected_status
+    assert h["calls"].read_text().count("call\n") == 2
+    os.utime(marker, (old_timestamp, old_timestamp))
+    h["status"].write_text("0\n")
+    assert h["run"]().returncode == 0
+    assert h["run"]().returncode == 0
+    assert h["calls"].read_text().count("call\n") == 3
+    assert not h["python_calls"].exists()
 
 
 @pytest.mark.parametrize("uv_available", [True, False])
