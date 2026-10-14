@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Git AI Commit is an Oh My Zsh plugin that generates AI-powered Git commit messages. It intercepts TAB key presses during `git commit -m` commands, analyzes staged changes and repository context, then streams a commit message suggestion directly into the command line.
+Git AI Commit is an Oh My Zsh plugin that generates AI-powered Git commit messages. It intercepts TAB key presses during `git commit -m` commands, analyzes staged changes and repository context, then inserts a commit message suggestion into the command line.
 
 **Tech Stack**: Python 3.11+ (core logic) + Zsh (shell integration) + OpenAI API
 
@@ -14,7 +14,7 @@ Git AI Commit is an Oh My Zsh plugin that generates AI-powered Git commit messag
 
 ```bash
 # Install dependencies (creates .venv automatically)
-uv sync
+uv sync --extra dev
 
 # Install with dev dependencies
 uv sync --all-extras
@@ -52,7 +52,7 @@ deactivate
 1. **Python Layer** (`src/git_ai_commit.py`): Core logic
    - Analyzes git diffs and repository context
    - Builds prompts with static (cacheable) and dynamic context
-   - Calls OpenAI API with streaming support
+   - Calls OpenAI Chat Completions without streaming
    - Outputs commit message to stdout
 
 2. **Zsh Layer** (`git-ai-commit.plugin.zsh`): Shell integration
@@ -95,7 +95,7 @@ deactivate
 4. Detects mode: generation (no quotes) or completion (unclosed quote)
 5. Exports environment variables: `GIT_AI_COMMIT_MODE` and `GIT_AI_COMMIT_PARTIAL_TEXT`
 6. Starts animated loading indicator in background
-7. Runs Python script (via `uv run` or venv activation)
+7. Runs Python script directly with the plugin's `.venv/bin/python`
 8. Captures output to temp file
 9. Kills loading animation
 10. Cleans up environment variables
@@ -201,7 +201,7 @@ Note: JSON configs (`.json`) are still supported for backward compatibility but 
 Key config sections:
 
 - `suggestion`: Convention (conventional/gitmoji/traditional), format (single/multi-line), line length
-- `openai`: Model, temperature (ignored for gpt-5/reasoning models), max_tokens
+- `openai`: Model (default `gpt-6-luna`), automatically normalized `reasoning_effort`, temperature, max_tokens
 - `context`: Token budget, commit history, smart filtering, README lines, tech detection
 - `caching`: TTL, API prompt caching, local caching
 
@@ -218,11 +218,11 @@ Zsh wraps output in double quotes when injecting into command.
 
 ### Virtual Environment Management
 
-Plugin auto-creates `.venv` on first load (git-ai-commit.plugin.zsh:14-35). Prefers `uv sync --no-dev` if available, falls back to `python3 -m venv + pip install`.
+`_git_ai_commit_ensure_venv` creates or refreshes the plugin's `.venv` when the checksum of `uv.lock` and `pyproject.toml` changes. A ready marker skips installation and Python probes on warm startup. uv uses `--locked` and an explicit plugin environment path; pip uses that environment's interpreter. Failed attempts are cached for 24 hours, then retried on the next shell startup; runnable existing environments remain available. Explicit `--retry` retries sooner and tells the user to reload the plugin afterward to bind TAB. Generation and lazygit use `.venv/bin/python` directly without syncing; lazygit reports a missing environment with a setup command.
 
 ### Async/Await Usage
 
-All OpenAI API calls use `AsyncOpenAI` client with `async for` streaming. Main entry point wraps with `asyncio.run()` (src/git_ai_commit.py:1075).
+OpenAI requests use `AsyncOpenAI` with non-streaming Chat Completions. Main entry point wraps with `asyncio.run()`.
 
 ### Terminal Control
 
@@ -235,11 +235,19 @@ Uses `zsh/terminfo` module for cursor positioning:
 
 ### Model Compatibility
 
-Temperature is conditionally set based on model (src/git_ai_commit.py:1052-1057):
+`src/git_ai_commit_models.py` builds parameters shared by generation and completion:
 
-- Reasoning models (o1, o3, o4): no temperature support
-- GPT-5 series: only default temperature
-- Older models: configurable temperature
+- Default: `gpt-6-luna` with `reasoning_effort: none`.
+- Recommended alternatives: `gpt-6.1-sol`, `gpt-6-astra`, `gpt-5.4-mini`.
+- Supported effort is preserved; unsupported `none`/`minimal` maps to the lowest compatible reasoning level, and excessive effort is capped.
+- GPT-5.1+ and GPT-6 send temperature only at effective effort `none`; original GPT-5 and o-series omit it.
+- Positive integer `max_tokens` (including numeric strings) becomes `max_completion_tokens`, including reasoning tokens; invalid values report a configuration error.
+- Null, empty, false, or missing effort omits the parameter; explicit `none` still translates per model. Unknown models and `o1-mini` omit both effort and temperature.
+- Listed model aliases and dated snapshots are recognized; unlisted variants pass through with conservative API defaults. This workflow uses Chat Completions without tools.
+- Dependency requirements live in `pyproject.toml`; setup fingerprints the entire dependency declaration instead of hard-coding an SDK version.
+- Wheel packaging exposes the two top-level modules used by the console entry point and includes `git_ai_commit_data/default_config.yaml`. Direct source execution still loads `config/default_config.yaml`.
+
+See README.md for the supported-model table and official documentation links.
 
 ## Known Limitations
 

@@ -21,6 +21,11 @@ set -euo pipefail
 
 # Configuration
 PLUGIN_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/git-ai-commit"
+if [[ ! -x "$PLUGIN_DIR/.venv/bin/python" ]]; then
+    echo "git-ai-commit environment missing. Initialize the zsh plugin, or run:" >&2
+    printf 'UV_PROJECT_ENVIRONMENT="%s/.venv" uv sync --project "%s" --no-dev --locked\n' "$PLUGIN_DIR" "$PLUGIN_DIR" >&2
+    exit 1
+fi
 TEMP_COMMIT_MSG=$(mktemp .git/COMMIT_EDITMSG.XXXXXX)
 
 # Cleanup function for temporary files
@@ -32,18 +37,10 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # Generate AI commit message
-# Prefer uv if available for faster execution, otherwise use traditional venv activation
-if command -v uv &>/dev/null && [ -d "$PLUGIN_DIR/.venv" ]; then
-    MSG=$(unset VIRTUAL_ENV; uv run --project "$PLUGIN_DIR" python "$PLUGIN_DIR/src/git_ai_commit.py" 2>&1)
-    EXIT_CODE=$?
+# Reuse the plugin environment without syncing or inheriting another uv project.
+if MSG=$("$PLUGIN_DIR/.venv/bin/python" "$PLUGIN_DIR/src/git_ai_commit.py" 2>&1); then
+    EXIT_CODE=0
 else
-    MSG=$(
-        source "$PLUGIN_DIR/.venv/bin/activate" || exit 1
-        python3 "$PLUGIN_DIR/src/git_ai_commit.py" 2>&1
-        exit_code=$?
-        deactivate
-        exit $exit_code
-    )
     EXIT_CODE=$?
 fi
 

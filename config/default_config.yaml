@@ -11,28 +11,31 @@ suggestion:
   max_length_per_line: 72
 
 # OpenAI API settings
-# Available models:
-#   - gpt-5-nano (fastest/cheapest)
-#   - gpt-5-mini (balanced)
-#   - gpt-5.2 (most capable)
-#   - gpt-4.1, gpt-4.1-nano, gpt-4.1-mini (previous generation)
-#   - o4-mini, o3-mini (reasoning models, no temperature support)
+# Recommended models (Chat Completions, text-only requests):
+#   - gpt-6-luna (default: fast, inexpensive commit summaries)
+#   - gpt-6.1-sol (more complex changes; minimum effort: low)
+#   - gpt-6-astra (highest capability; minimum effort: low)
+#   - gpt-5.4-mini (GPT-5 alternative)
+# See README.md for supported models and automatic effort translation.
 openai:
-  model: gpt-5-nano
+  model: gpt-6-luna
 
-  # Temperature: Only used for older models (gpt-4.x)
-  # GPT-5 and reasoning models (o1, o3, o4) ignore this setting
+  # Temperature: Sent for GPT-5.1+ and GPT-6 only at effective effort "none".
+  # Always omitted for original GPT-5 and o-series reasoning models.
   temperature: 0.7
 
-  # Max tokens: 0 = no limit (recommended for gpt-5/reasoning models)
+  # Max tokens: 0 = use the model's output limit
   # Set to a positive number (e.g., 1000) to limit API costs
-  # Note: gpt-5 models use internal reasoning tokens, so they need higher limits than older models
+  # Integer strings (e.g., "1000") are also accepted.
+  # Sent as max_completion_tokens, including reasoning and visible output tokens.
   max_tokens: 0
 
-  # Reasoning effort: Controls reasoning depth for o-series (o1/o3/o4) and gpt-5 models
-  # Options: none (gpt-5.1+), low, medium, high, xhigh (gpt-5.2)
-  # Ignored for unsupported models
-  reasoning_effort: low
+  # Effort: none, minimal, low, medium, high, xhigh, max (model-dependent).
+  # Unsupported none -> minimal (original GPT-5) or low (Astra / GPT-6.1 Sol).
+  # Unsupported minimal -> low; excessive effort -> highest supported level.
+  # Null, empty, or false -> omit effort and use API defaults.
+  # Unknown models omit effort and temperature; legacy non-reasoning models ignore effort.
+  reasoning_effort: none
 
 # Context settings - control what information is included in the prompt
 context:

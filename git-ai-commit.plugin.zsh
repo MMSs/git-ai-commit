@@ -23,29 +23,87 @@ PLUGIN_DIR="${0:A:h}"
 # Function to ensure virtualenv is set up
 _git_ai_commit_ensure_venv() {
     local venv_dir="${PLUGIN_DIR}/.venv"
+    local ready_marker="$venv_dir/.git-ai-commit-ready"
+    local attempt_marker="${PLUGIN_DIR}/.git-ai-commit-setup-attempt"
+    local setup_fingerprint
+    setup_fingerprint=$(cksum "${PLUGIN_DIR}/uv.lock" "${PLUGIN_DIR}/pyproject.toml") || return 1
+    local previous_attempt=""
+    [[ -f "$attempt_marker" ]] && previous_attempt=$(<"$attempt_marker")
+    local fallback_environment=0
+    # An interpreter created during a failed fresh install isn't a usable fallback,
+    # including when that failed installation is explicitly retried.
+    if [[ -x "$venv_dir/bin/python" && "$previous_attempt" != blocked:* ]]; then
+        fallback_environment=1
+    fi
 
-    # Create virtualenv if it doesn't exist
-    if [[ ! -d "$venv_dir" ]]; then
-        echo "Setting up git-ai-commit environment..."
-
-        # Check if uv is available and prefer it
-        if command -v uv &>/dev/null; then
-            echo "Using uv to install dependencies..."
-            cd "$PLUGIN_DIR"
-            uv sync --no-dev
-            cd - > /dev/null
-        else
-            echo "Using standard pip (consider installing uv for faster setup: https://github.com/astral-sh/uv)"
-            python3 -m venv "$venv_dir"
-            source "$venv_dir/bin/activate"
-            pip install .
-            deactivate
+    # Dependency files cover the entire environment without launching Python.
+    # Remember failed attempts too, so offline startup doesn't reinstall each time.
+    if [[ "${1:-}" != "--retry" ]]; then
+        # A blocked repair can leave an old ready marker and a fresh interpreter.
+        # Trust the most recent attempt before accepting that old success marker.
+        if [[ "$previous_attempt" == "fallback:$setup_fingerprint" || \
+              "$previous_attempt" == "blocked:$setup_fingerprint" ]]; then
+            # Give offline installs a daily retry without slowing every new shell.
+            zmodload zsh/datetime || return 1
+            zmodload zsh/stat || return 1
+            local -a attempt_times
+            local retry_delay_seconds=86400
+            local attempt_is_recent=1
+            if zstat -A attempt_times +mtime "$attempt_marker"; then
+                if (( EPOCHSECONDS - attempt_times[1] >= retry_delay_seconds )); then
+                    attempt_is_recent=0
+                fi
+            fi
+            if [[ $attempt_is_recent -eq 1 ]]; then
+                [[ $fallback_environment -eq 1 ]] && return 0
+                print -r -- "git-ai-commit setup needs retry: _git_ai_commit_ensure_venv --retry; then reload with: source ${(q)PLUGIN_DIR}/git-ai-commit.plugin.zsh" >&2
+                return 1
+            fi
+        elif [[ -x "$venv_dir/bin/python" && -f "$ready_marker" ]] && \
+           [[ "$(<"$ready_marker")" == "$setup_fingerprint" ]]; then
+            return 0
         fi
     fi
+
+    local attempt_mode=blocked
+    [[ $fallback_environment -eq 1 ]] && attempt_mode=fallback
+    print -r -- "$attempt_mode:$setup_fingerprint" > "$attempt_marker" || return 1
+    echo "Setting up git-ai-commit environment..."
+    local install_status=0
+    if command -v uv &>/dev/null; then
+        echo "Using uv to install dependencies..."
+        (
+            unset VIRTUAL_ENV
+            UV_PROJECT_ENVIRONMENT="$venv_dir" uv sync --project "$PLUGIN_DIR" --no-dev --locked
+        ) || install_status=$?
+    else
+        echo "Using standard pip (consider installing uv for faster setup: https://github.com/astral-sh/uv)"
+        if [[ ! -x "$venv_dir/bin/python" ]]; then
+            python3 -m venv "$venv_dir" || install_status=$?
+        fi
+        if [[ $install_status -eq 0 ]]; then
+            "$venv_dir/bin/python" -m pip install --upgrade "$PLUGIN_DIR" || install_status=$?
+        fi
+    fi
+
+    if [[ $install_status -eq 0 && -x "$venv_dir/bin/python" ]]; then
+        print -r -- "$setup_fingerprint" > "$ready_marker" || return 1
+        : > "$attempt_marker"
+        if [[ "${1:-}" == "--retry" ]]; then
+            print -r -- "git-ai-commit setup repaired. Reload plugin to enable TAB: source ${(q)PLUGIN_DIR}/git-ai-commit.plugin.zsh" >&2
+        fi
+        return 0
+    fi
+    # Reset the daily retry window when installation finishes, including failures.
+    print -r -- "$attempt_mode:$setup_fingerprint" > "$attempt_marker"
+    print -r -- "git-ai-commit setup failed; retry when online: _git_ai_commit_ensure_venv --retry; then reload with: source ${(q)PLUGIN_DIR}/git-ai-commit.plugin.zsh" >&2
+    # Keep a runnable existing environment available after a failed refresh.
+    [[ $fallback_environment -eq 1 && -x "$venv_dir/bin/python" ]] && return 0
+    return 1
 }
 
 # Initialize the plugin
-_git_ai_commit_ensure_venv
+_git_ai_commit_ensure_venv || return 1
 
 # Function to ensure there's a line below the prompt for status messages
 # This handles the case when the prompt is at the bottom of the terminal
@@ -208,11 +266,10 @@ _gcommit() {
             unset GIT_AI_COMMIT_PARTIAL_TEXT
         }
 
-        # Generate commit message with streaming output
+        # Generate commit message while the loading animation runs
         local temp_file=$(mktemp)
         local error_file=$(mktemp)
         local exit_status
-        local current_dir="$PWD"
 
         # Set up trap to catch Ctrl+C (SIGINT) and SIGTERM and clean up
         trap '_cleanup_loading; return 1' INT TERM
@@ -223,24 +280,11 @@ _gcommit() {
             export GIT_AI_COMMIT_PARTIAL_TEXT="$partial_text"
         fi
 
-        # Use uv run if uv is available and venv exists, otherwise use traditional activation
-        if command -v uv &>/dev/null && [[ -d "${PLUGIN_DIR}/.venv" ]]; then
-            (
-                unset VIRTUAL_ENV
-                uv run --project "${PLUGIN_DIR}" python "${PLUGIN_DIR}/src/git_ai_commit.py"
-            ) > "$temp_file" 2> "$error_file"
-            exit_status=$?
-        else
-            (
-                source "${PLUGIN_DIR}/.venv/bin/activate" || exit 1
-                cd "$current_dir" || exit 1
-                python3 "${PLUGIN_DIR}/src/git_ai_commit.py"
-                local result=$?
-                deactivate
-                exit $result
-            ) > "$temp_file" 2> "$error_file"
-            exit_status=$?
-        fi
+        # Setup owns dependency sync. TAB must not retry installs or inherit another
+        # project's UV_PROJECT_ENVIRONMENT/VIRTUAL_ENV configuration.
+        "${PLUGIN_DIR}/.venv/bin/python" "${PLUGIN_DIR}/src/git_ai_commit.py" \
+            > "$temp_file" 2> "$error_file"
+        exit_status=$?
 
         # Stop the loading animation
         kill $loading_pid 2>/dev/null
