@@ -58,7 +58,13 @@ Issues = "https://github.com/MMSs/git-ai-commit/issues"
 git-ai-commit = "git_ai_commit:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src"]
+only-include = ["src"]
+
+[tool.hatch.build.targets.wheel.sources]
+"src" = ""
+
+[tool.hatch.build.targets.wheel.force-include]
+"config/default_config.yaml" = "git_ai_commit_data/default_config.yaml"
 
 [tool.black]
 line-length = 88

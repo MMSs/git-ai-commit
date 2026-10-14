@@ -156,7 +156,13 @@ class CacheManager:
 
 
 # Load default configuration from YAML file
-_DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / "config" / "default_config.yaml"
+_DEFAULT_CONFIG_PATH = (
+    Path(__file__).parent / "git_ai_commit_data" / "default_config.yaml"
+)
+if not _DEFAULT_CONFIG_PATH.exists():
+    _DEFAULT_CONFIG_PATH = (
+        Path(__file__).parent.parent / "config" / "default_config.yaml"
+    )
 
 # Validate that the default config file exists
 if not _DEFAULT_CONFIG_PATH.exists():
