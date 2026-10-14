@@ -32,7 +32,8 @@ openai:
   # Effort: none, minimal, low, medium, high, xhigh, max (model-dependent).
   # Unsupported none -> minimal (original GPT-5) or low (Astra / GPT-6.1 Sol).
   # Unsupported minimal -> low; excessive effort -> highest supported level.
-  # Null/empty -> lowest supported effort; ignored by non-reasoning models.
+  # Null, empty, or false -> omit effort and use API defaults.
+  # Unknown models omit effort and temperature; legacy non-reasoning models ignore effort.
   reasoning_effort: none
 
 # Context settings - control what information is included in the prompt

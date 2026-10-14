@@ -67,8 +67,8 @@ def make_committer(model: str, effort: object, mode: str = "generation") -> GitA
         ("gpt-5.4", "low", "low", False),
         ("gpt-5.5", "max", "xhigh", False),
         ("gpt-5.6-luna", "max", "max", False),
-        ("gpt-6-luna", None, "none", True),
-        ("gpt-6-astra", None, "low", False),
+        ("gpt-6-luna", None, None, False),
+        ("gpt-6-astra", None, None, False),
         ("gpt-4.1", "none", None, True),
         ("o3-mini", "none", "low", False),
     ],
@@ -103,18 +103,57 @@ async def test_invalid_effort_fails_before_api_call(effort, capsys) -> None:
     assert "reasoning_effort" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("model", ["gpt-6-unknown", "gpt-5.4-pro", "gpt-5.3-codex"])
-async def test_unverified_variants_fail_before_api_call(model, capsys) -> None:
+@pytest.mark.parametrize(
+    "model",
+    [
+        "gpt-6-unknown",
+        "gpt-5.4-pro",
+        "gpt-5.3-codex",
+        "gpt-5-chat-latest",
+        "gpt-5.1-chat-latest",
+        "o5-mini",
+        "gpt-7",
+        "custom-model",
+    ],
+)
+async def test_unknown_models_use_conservative_parameters(model) -> None:
     committer = make_committer(model, "none")
 
-    assert await committer.generate_suggestion() is None
-    committer.client.chat.completions.create.assert_not_awaited()
-    assert "gpt-6-luna" in capsys.readouterr().err
+    assert await committer.generate_suggestion() == "fix: handle input"
+    params = committer.client.chat.completions.create.call_args.kwargs
+    assert params["model"] == model
+    assert "reasoning_effort" not in params
+    assert "temperature" not in params
 
 
-async def test_unlimited_output_omits_token_limit() -> None:
+@pytest.mark.parametrize("effort", [None, "", False, "  "])
+@pytest.mark.parametrize(
+    "model", ["gpt-5", "gpt-6-luna", "gpt-6-astra", "o3-mini", "o1-mini"]
+)
+async def test_disabled_effort_is_omitted(model, effort) -> None:
+    committer = make_committer(model, effort)
+
+    assert await committer.generate_suggestion() == "fix: handle input"
+    params = committer.client.chat.completions.create.call_args.kwargs
+    assert "reasoning_effort" not in params
+    assert "temperature" not in params
+
+
+def test_missing_effort_is_omitted() -> None:
+    assert model_parameters({"model": "gpt-6-luna"}) == {"model": "gpt-6-luna"}
+
+
+@pytest.mark.parametrize("effort", ["low", "none"])
+def test_o1_mini_never_receives_effort(effort) -> None:
+    assert model_parameters({"model": "o1-mini", "reasoning_effort": effort}) == {
+        "model": "o1-mini"
+    }
+
+
+@pytest.mark.parametrize("max_tokens", [0, None, "", False])
+async def test_unlimited_output_omits_token_limit(max_tokens) -> None:
     committer = make_committer("gpt-6-luna", "none")
-    committer.config["openai"]["max_tokens"] = 0
+    committer.config["openai"]["max_tokens"] = max_tokens
 
     await committer.generate_suggestion()
 

@@ -21,7 +21,7 @@ GPT6_REASONING_ONLY = ModelCapabilities(("low", "medium", "high", "xhigh", "max"
 O_SERIES = ModelCapabilities(("low", "medium", "high"), False)
 
 # Verified against official model pages and migration guidance, 2026-10-14.
-# Exact aliases prevent Responses-only Pro/Codex variants inheriting chat settings.
+# Unknown variants keep API defaults instead of inheriting family-level settings.
 MODEL_CAPABILITIES = {
     "gpt-5": ORIGINAL_GPT5,
     "gpt-5-mini": ORIGINAL_GPT5,
@@ -43,10 +43,16 @@ MODEL_CAPABILITIES = {
 }
 
 
-def normalize_effort(effort: str | None, capabilities: ModelCapabilities) -> str:
+def normalize_effort(
+    effort: str | bool | None, capabilities: ModelCapabilities
+) -> str | None:
     """Preserve supported effort, otherwise choose a compatible boundary."""
-    if effort is None or effort == "":
-        return capabilities.efforts[0]
+    if (
+        effort is None
+        or effort is False
+        or (isinstance(effort, str) and not effort.strip())
+    ):
+        return None
     if not isinstance(effort, str) or effort.strip().lower() not in EFFORT_ORDER:
         raise ValueError(f"Invalid reasoning_effort: {effort!r}. Use {EFFORT_ORDER}.")
     effort = effort.strip().lower()
@@ -64,28 +70,27 @@ def model_parameters(config: dict[str, Any]) -> dict[str, Any]:
     model = config["model"]
     alias = re.sub(r"-\d{4}-\d{2}-\d{2}$", "", model)
     capabilities = MODEL_CAPABILITIES.get(alias)
-    if capabilities is None and re.match(r"^o[134](?:-|$)", alias):
+    if alias in {"o1", "o3", "o3-mini", "o4-mini"}:
         capabilities = O_SERIES
-    if capabilities is None and re.match(r"^gpt-[56](?:[.-]|$)", alias):
-        raise ValueError(
-            f"Model {model!r} has no verified Chat Completions compatibility. "
-            "Use gpt-6-luna or another model listed in README.md. "
-            "Pro/Codex variants may require the Responses API."
-        )
 
     params: dict[str, Any] = {"model": model}
     if capabilities is not None:
         effort = normalize_effort(config.get("reasoning_effort"), capabilities)
-        params["reasoning_effort"] = effort
+        if effort is not None:
+            params["reasoning_effort"] = effort
         use_temperature = (
             capabilities.temperature_without_reasoning and effort == "none"
         )
     else:
-        # Preserve non-reasoning model behavior; effort has no API meaning here.
-        use_temperature = True
+        # Only established non-reasoning families receive sampling parameters.
+        # Future GPT/o-series models and chat aliases retain conservative defaults.
+        use_temperature = bool(
+            re.match(r"^gpt-(?:4(?:[.-]|$)|3\.5(?:-|$))", alias)
+            or alias == "chatgpt-4o-latest"
+        )
     if use_temperature:
         params["temperature"] = config.get("temperature", 0.7)
-    max_tokens = config.get("max_tokens", 0)
+    max_tokens = config.get("max_tokens") or 0
     if max_tokens > 0:
         params["max_completion_tokens"] = max_tokens
     return params
