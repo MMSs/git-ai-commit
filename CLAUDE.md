@@ -14,7 +14,7 @@ Git AI Commit is an Oh My Zsh plugin that generates AI-powered Git commit messag
 
 ```bash
 # Install dependencies (creates .venv automatically)
-uv sync
+uv sync --extra dev
 
 # Install with dev dependencies
 uv sync --all-extras
@@ -95,7 +95,7 @@ deactivate
 4. Detects mode: generation (no quotes) or completion (unclosed quote)
 5. Exports environment variables: `GIT_AI_COMMIT_MODE` and `GIT_AI_COMMIT_PARTIAL_TEXT`
 6. Starts animated loading indicator in background
-7. Runs Python script (via `uv run` or venv activation)
+7. Runs Python script directly with the plugin's `.venv/bin/python`
 8. Captures output to temp file
 9. Kills loading animation
 10. Cleans up environment variables
@@ -218,7 +218,7 @@ Zsh wraps output in double quotes when injecting into command.
 
 ### Virtual Environment Management
 
-Plugin auto-creates `.venv` on first load (git-ai-commit.plugin.zsh:14-35). Prefers `uv sync --no-dev` if available, falls back to `python3 -m venv + pip install`.
+`_git_ai_commit_ensure_venv` creates or refreshes the plugin's `.venv` once per checksum of `uv.lock` and `pyproject.toml`. A ready marker skips installation and Python probes on warm startup. uv uses `--locked` and an explicit plugin environment path; pip uses that environment's interpreter. Failed attempts are cached; runnable existing environments remain available. Explicit `--retry` retries setup. Generation and lazygit use `.venv/bin/python` directly without syncing.
 
 ### Async/Await Usage
 
@@ -242,8 +242,10 @@ Uses `zsh/terminfo` module for cursor positioning:
 - Supported effort is preserved; unsupported `none`/`minimal` maps to the lowest compatible reasoning level, and excessive effort is capped.
 - GPT-5.1+ and GPT-6 send temperature only at effective effort `none`; original GPT-5 and o-series omit it.
 - Positive `max_tokens` becomes `max_completion_tokens`, including reasoning tokens.
-- Exact supported model aliases and dated snapshots are recognized; unverified GPT-5/GPT-6 variants fail before API calls. This workflow uses Chat Completions without tools.
-- `openai>=2.14.0` is required; plugin setup refreshes missing/older SDKs and propagates installation failures.
+- Null, empty, false, or missing effort omits the parameter; explicit `none` still translates per model. Unknown models and `o1-mini` omit both effort and temperature.
+- Listed model aliases and dated snapshots are recognized; unlisted variants pass through with conservative API defaults. This workflow uses Chat Completions without tools.
+- Dependency requirements live in `pyproject.toml`; setup fingerprints the entire dependency declaration instead of hard-coding an SDK version.
+- Wheel packaging exposes the two top-level modules used by the console entry point and includes `git_ai_commit_data/default_config.yaml`. Direct source execution still loads `config/default_config.yaml`.
 
 See README.md for the supported-model table and official documentation links.
 

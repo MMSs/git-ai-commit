@@ -42,7 +42,7 @@ git clone https://github.com/MMSs/git-ai-commit.git ${ZSH_CUSTOM:-~/.oh-my-zsh/c
 
 ```bash
 cd ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/git-ai-commit
-uv sync --no-dev
+UV_PROJECT_ENVIRONMENT="$PWD/.venv" uv sync --no-dev --locked
 ```
 
 4. Add the plugin to your Oh My Zsh configuration. Open your `.zshrc` and add `git-ai-commit` to your plugins:
@@ -67,9 +67,21 @@ source ~/.zshrc
 
 If you prefer not to use `uv`, the plugin will automatically create a virtual environment using Python's built-in `venv` and install dependencies with `pip` on first use. Just follow steps 2, 4, 5, and 6 above.
 
-Setup requires `openai>=2.14.0` and refreshes existing environments with an older
-or missing SDK. It uses the virtual environment's Python for pip installation and
-stops initialization if installation fails.
+Setup uses dependency requirements from `pyproject.toml` and `uv.lock`. After a
+successful install, a checksum marker avoids Python version probes and repeat
+installs on shell startup. Changes to either dependency file trigger one refresh.
+uv always targets the plugin's `.venv`, regardless of `UV_PROJECT_ENVIRONMENT`.
+Generation uses that interpreter directly, without another dependency sync.
+
+Failed installs are remembered for the same dependency revision. A runnable
+existing environment remains available; a failed fresh install cannot load the
+plugin even if it created an interpreter. Once online, retry explicitly:
+
+```zsh
+_git_ai_commit_ensure_venv --retry
+# If initial setup prevented loading the plugin, reload it after the retry:
+source "$PLUGIN_DIR/git-ai-commit.plugin.zsh"
+```
 
 ### Updating
 
@@ -79,7 +91,7 @@ To update the plugin:
 cd ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/git-ai-commit
 git pull
 # Update dependencies
-uv sync --no-dev
+UV_PROJECT_ENVIRONMENT="$PWD/.venv" uv sync --no-dev --locked
 ```
 
 Then restart your terminal or reload Oh My Zsh.
@@ -133,8 +145,10 @@ Generation and partial-message completion both use Chat Completions without tool
 The recommended models support this API; switching to Responses is unnecessary
 for this workflow. Tool calling has additional restrictions documented in the
 [GPT-6 migration guide](https://developers.openai.com/api/docs/guides/latest-model#update-api-and-model-parameters).
-Responses-only Pro/Codex variants and unverified GPT-5/GPT-6 aliases fail locally
-with an actionable error instead of sending guessed parameters.
+Unlisted models, including `gpt-5-chat-latest` and `gpt-5.1-chat-latest`, pass
+through with no temperature or effort parameter. This preserves API defaults
+without guessing capabilities. The API still decides whether a model is available
+and supports Chat Completions; passing through does not enable Responses-only models.
 
 | Supported models | API effort values |
 |------------------|-------------------|
@@ -154,15 +168,19 @@ Effort translates automatically:
 - `none` becomes `minimal` for original GPT-5, or `low` for GPT-6 Astra and GPT-6.1 Sol.
 - `minimal` becomes `low` on models that do not support it.
 - `xhigh`/`max` above a model's supported range become its highest supported effort.
-- Missing, null, or empty effort uses the lowest supported effort. Config merging
-  normally supplies the shipped `none` value when an override omits the setting.
-- Unrecognized values fail before any API call. Non-reasoning models ignore effort;
-  o-series models normalize to `low`, `medium`, or `high`.
+- Missing, null, empty, or `false` effort omits the API parameter. This differs from
+  the string `none`, which explicitly requests no reasoning where supported.
+  Config merging normally supplies the shipped `none` value when an override
+  omits the setting; use `null` or `false` to override it and retain API defaults.
+- Unrecognized effort values fail for listed reasoning models. `o1`, `o3`,
+  `o3-mini`, and `o4-mini` normalize explicit effort to `low`, `medium`, or `high`.
+  `o1-mini` and unknown models never receive effort.
 
 Temperature is sent for GPT-5.1+ and GPT-6 only when the translated effort is `none`.
-Original GPT-5 and o-series models omit it; non-reasoning models retain it.
+Original GPT-5, o-series, and unknown models omit it. GPT-3.5/GPT-4 families retain
+configured temperature. Omitting effort also omits temperature for listed reasoning models.
 `max_tokens` is sent as `max_completion_tokens` and limits both reasoning and
-visible output. A value of `0` omits the parameter.
+visible output. A value of `0`, `null`, or an empty value omits the parameter.
 
 Sources: [GPT-5](https://developers.openai.com/api/docs/models/gpt-5),
 [GPT-5.1](https://developers.openai.com/api/docs/models/gpt-5.1),
@@ -273,18 +291,8 @@ if [ -z "$COMMIT_SOURCE" ]; then
             # Generate AI commit message with timing
             START_TIME=$(date +%s)
 
-            # Use uv run if available, otherwise use venv
-            if command -v uv &>/dev/null && [ -d "$PLUGIN_DIR/.venv" ]; then
-                MSG=$(uv run --project "$PLUGIN_DIR" python "$PLUGIN_DIR/src/git_ai_commit.py" 2>&1)
-            else
-                MSG=$(
-                    source "$PLUGIN_DIR/.venv/bin/activate" || exit 1
-                    python3 "$PLUGIN_DIR/src/git_ai_commit.py" 2>&1
-                    exit_code=$?
-                    deactivate
-                    exit $exit_code
-                )
-            fi
+            # Reuse plugin dependencies without syncing during commit generation
+            MSG=$("$PLUGIN_DIR/.venv/bin/python" "$PLUGIN_DIR/src/git_ai_commit.py" 2>&1)
             EXIT_CODE=$?
 
             END_TIME=$(date +%s)
@@ -380,7 +388,7 @@ git clone https://github.com/MMSs/git-ai-commit.git
 cd git-ai-commit
 
 # Install dependencies (creates venv automatically and installs everything)
-uv sync
+uv sync --extra dev
 
 # Run tests
 uv run pytest
