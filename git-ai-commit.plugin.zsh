@@ -24,28 +24,31 @@ PLUGIN_DIR="${0:A:h}"
 _git_ai_commit_ensure_venv() {
     local venv_dir="${PLUGIN_DIR}/.venv"
 
-    # Create virtualenv if it doesn't exist
-    if [[ ! -d "$venv_dir" ]]; then
-        echo "Setting up git-ai-commit environment..."
+    # Existing environments also need an SDK that accepts modern model parameters.
+    if [[ -x "$venv_dir/bin/python" ]] && "$venv_dir/bin/python" -c '
+from importlib.metadata import version
+import re
+sdk_version = tuple(int(part) for part in re.match(r"^(\d+)\.(\d+)\.(\d+)", version("openai")).groups())
+raise SystemExit(0 if sdk_version >= (2, 14, 0) else 1)
+' &>/dev/null; then
+        return 0
+    fi
 
-        # Check if uv is available and prefer it
-        if command -v uv &>/dev/null; then
-            echo "Using uv to install dependencies..."
-            cd "$PLUGIN_DIR"
-            uv sync --no-dev
-            cd - > /dev/null
-        else
-            echo "Using standard pip (consider installing uv for faster setup: https://github.com/astral-sh/uv)"
-            python3 -m venv "$venv_dir"
-            source "$venv_dir/bin/activate"
-            pip install .
-            deactivate
+    echo "Setting up git-ai-commit environment..."
+    if command -v uv &>/dev/null; then
+        echo "Using uv to install dependencies..."
+        uv sync --project "$PLUGIN_DIR" --no-dev || return 1
+    else
+        echo "Using standard pip (consider installing uv for faster setup: https://github.com/astral-sh/uv)"
+        if [[ ! -x "$venv_dir/bin/python" ]]; then
+            python3 -m venv "$venv_dir" || return 1
         fi
+        "$venv_dir/bin/python" -m pip install --upgrade "$PLUGIN_DIR" || return 1
     fi
 }
 
 # Initialize the plugin
-_git_ai_commit_ensure_venv
+_git_ai_commit_ensure_venv || return 1
 
 # Function to ensure there's a line below the prompt for status messages
 # This handles the case when the prompt is at the bottom of the terminal

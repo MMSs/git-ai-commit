@@ -36,7 +36,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "openai>=1.0.0",
+    "openai>=2.14.0",
     "pyyaml>=6.0",
 ]
 
@@ -98,6 +98,7 @@ warn_no_return = true
 strict_equality = true
 
 [tool.pytest.ini_options]
+pythonpath = ["src"]
 minversion = "7.0"
 testpaths = ["tests"]
 asyncio_mode = "auto"
