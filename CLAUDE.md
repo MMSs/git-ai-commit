@@ -218,7 +218,7 @@ Zsh wraps output in double quotes when injecting into command.
 
 ### Virtual Environment Management
 
-`_git_ai_commit_ensure_venv` creates or refreshes the plugin's `.venv` once per checksum of `uv.lock` and `pyproject.toml`. A ready marker skips installation and Python probes on warm startup. uv uses `--locked` and an explicit plugin environment path; pip uses that environment's interpreter. Failed attempts are cached; runnable existing environments remain available. Explicit `--retry` retries setup. Generation and lazygit use `.venv/bin/python` directly without syncing.
+`_git_ai_commit_ensure_venv` creates or refreshes the plugin's `.venv` when the checksum of `uv.lock` and `pyproject.toml` changes. A ready marker skips installation and Python probes on warm startup. uv uses `--locked` and an explicit plugin environment path; pip uses that environment's interpreter. Failed attempts are cached for 24 hours, then retried on the next shell startup; runnable existing environments remain available. Explicit `--retry` retries sooner and tells the user to reload the plugin afterward to bind TAB. Generation and lazygit use `.venv/bin/python` directly without syncing; lazygit reports a missing environment with a setup command.
 
 ### Async/Await Usage
 
@@ -235,13 +235,13 @@ Uses `zsh/terminfo` module for cursor positioning:
 
 ### Model Compatibility
 
-`src/model_compatibility.py` builds parameters shared by generation and completion:
+`src/git_ai_commit_models.py` builds parameters shared by generation and completion:
 
 - Default: `gpt-6-luna` with `reasoning_effort: none`.
 - Recommended alternatives: `gpt-6.1-sol`, `gpt-6-astra`, `gpt-5.4-mini`.
 - Supported effort is preserved; unsupported `none`/`minimal` maps to the lowest compatible reasoning level, and excessive effort is capped.
 - GPT-5.1+ and GPT-6 send temperature only at effective effort `none`; original GPT-5 and o-series omit it.
-- Positive `max_tokens` becomes `max_completion_tokens`, including reasoning tokens.
+- Positive integer `max_tokens` (including numeric strings) becomes `max_completion_tokens`, including reasoning tokens; invalid values report a configuration error.
 - Null, empty, false, or missing effort omits the parameter; explicit `none` still translates per model. Unknown models and `o1-mini` omit both effort and temperature.
 - Listed model aliases and dated snapshots are recognized; unlisted variants pass through with conservative API defaults. This workflow uses Chat Completions without tools.
 - Dependency requirements live in `pyproject.toml`; setup fingerprints the entire dependency declaration instead of hard-coding an SDK version.

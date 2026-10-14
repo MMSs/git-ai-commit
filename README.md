@@ -73,13 +73,16 @@ installs on shell startup. Changes to either dependency file trigger one refresh
 uv always targets the plugin's `.venv`, regardless of `UV_PROJECT_ENVIRONMENT`.
 Generation uses that interpreter directly, without another dependency sync.
 
-Failed installs are remembered for the same dependency revision. A runnable
-existing environment remains available; a failed fresh install cannot load the
-plugin even if it created an interpreter. Once online, retry explicitly:
+Failed installs are remembered for 24 hours for the same dependency revision.
+The next shell startup after that interval retries automatically; another failure
+starts a new 24-hour wait. A runnable existing environment remains available; a
+failed fresh install cannot load the plugin even if it created an interpreter.
+To retry sooner, run the command below. Repairing setup does not finish loading
+the plugin in the current shell, so reload it afterward to enable TAB:
 
 ```zsh
 _git_ai_commit_ensure_venv --retry
-# If initial setup prevented loading the plugin, reload it after the retry:
+# Reload after repairing a setup failure:
 source "$PLUGIN_DIR/git-ai-commit.plugin.zsh"
 ```
 
@@ -178,9 +181,12 @@ Effort translates automatically:
 
 Temperature is sent for GPT-5.1+ and GPT-6 only when the translated effort is `none`.
 Original GPT-5, o-series, and unknown models omit it. GPT-3.5/GPT-4 families retain
-configured temperature. Omitting effort also omits temperature for listed reasoning models.
+configured temperature, including GPT-4o and GPT-4o mini. Omitting effort also
+omits temperature for listed reasoning models.
 `max_tokens` is sent as `max_completion_tokens` and limits both reasoning and
 visible output. A value of `0`, `null`, or an empty value omits the parameter.
+Integer strings such as `"500"` are accepted; invalid values report a clear
+`max_tokens` configuration error.
 
 Sources: [GPT-5](https://developers.openai.com/api/docs/models/gpt-5),
 [GPT-5.1](https://developers.openai.com/api/docs/models/gpt-5.1),
@@ -375,6 +381,8 @@ Replace `{{path-to-git-ai-commit-plugin}}` with the actual path, typically:
 - Uses `$EDITOR` environment variable (defaults to `nvim`)
 - `output: "terminal"` suspends lazygit and runs the command in a terminal
 - The script includes trap handlers for proper cleanup of temporary files
+- If the plugin environment is missing, the script prints the setup command
+  before attempting generation; initializing the zsh plugin also creates it.
 
 ## Development
 
