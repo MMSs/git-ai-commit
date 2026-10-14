@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 .Python
 .venv/
+.git-ai-commit-setup-attempt
 
 # Oh My Zsh plugin specific
 *.zwc

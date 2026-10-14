@@ -32,18 +32,10 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # Generate AI commit message
-# Prefer uv if available for faster execution, otherwise use traditional venv activation
-if command -v uv &>/dev/null && [ -d "$PLUGIN_DIR/.venv" ]; then
-    MSG=$(unset VIRTUAL_ENV; uv run --project "$PLUGIN_DIR" python "$PLUGIN_DIR/src/git_ai_commit.py" 2>&1)
-    EXIT_CODE=$?
+# Reuse the plugin environment without syncing or inheriting another uv project.
+if MSG=$("$PLUGIN_DIR/.venv/bin/python" "$PLUGIN_DIR/src/git_ai_commit.py" 2>&1); then
+    EXIT_CODE=0
 else
-    MSG=$(
-        source "$PLUGIN_DIR/.venv/bin/activate" || exit 1
-        python3 "$PLUGIN_DIR/src/git_ai_commit.py" 2>&1
-        exit_code=$?
-        deactivate
-        exit $exit_code
-    )
     EXIT_CODE=$?
 fi
 
