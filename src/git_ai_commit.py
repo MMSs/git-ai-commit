@@ -14,6 +14,7 @@ import sys
 from openai import AsyncOpenAI
 
 from git_ai_commit_models import model_parameters
+from git_ai_commit_backends import normalize_legacy_config
 
 
 def print_output(message: str, is_error: bool = False) -> None:
@@ -242,11 +243,12 @@ class GitAICommit:
         """Load a config file (JSON or YAML based on extension).
 
         JSON support maintained for backward compatibility only.
+        Legacy top-level ``openai`` blocks are moved under ``api``.
         """
         try:
             with open(path) as f:
                 if path.suffix in [".yaml", ".yml"]:
-                    return yaml.safe_load(f) or {}
+                    raw = yaml.safe_load(f) or {}
                 else:  # .json - backward compatibility only
                     # Warn users about JSON deprecation
                     print_output(
@@ -255,7 +257,8 @@ class GitAICommit:
                         f"Please migrate to YAML format (.yaml or .yml).",
                         is_error=True,
                     )
-                    return json.load(f)
+                    raw = json.load(f)
+            return normalize_legacy_config(raw)
         except (json.JSONDecodeError, yaml.YAMLError, IOError) as e:
             # Log error but don't crash - return empty dict
             print_output(
@@ -267,7 +270,7 @@ class GitAICommit:
         """Deep merge: recursively merge nested dictionaries.
 
         This ensures that partial config overrides preserve other nested values.
-        For example, overriding only openai.model won't wipe out temperature, max_tokens, etc.
+        For example, overriding only api.model won't wipe out temperature, max_tokens, etc.
         """
         result = copy.deepcopy(base)
         for key, value in override.items():
@@ -1166,7 +1169,7 @@ Do NOT use: markdown, code blocks, backticks, or double quotes.
 
             # Build API parameters
             api_params: Dict[str, Any] = {
-                **model_parameters(self.config["openai"]),
+                **model_parameters(self.config["api"]),
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},

@@ -16,7 +16,8 @@ from git_ai_commit_models import model_parameters
 def make_committer(model: str, effort: object, mode: str = "generation") -> GitAICommit:
     committer = GitAICommit.__new__(GitAICommit)
     committer.config = {
-        "openai": {
+        "api": {
+            "provider": "openai",
             "model": model,
             "reasoning_effort": effort,
             "temperature": 0.7,
@@ -170,7 +171,7 @@ def test_o1_mini_never_receives_effort(effort) -> None:
 @pytest.mark.parametrize("max_tokens", [0, None, "", False])
 async def test_unlimited_output_omits_token_limit(max_tokens) -> None:
     committer = make_committer("gpt-6-luna", "none")
-    committer.config["openai"]["max_tokens"] = max_tokens
+    committer.config["api"]["max_tokens"] = max_tokens
 
     await committer.generate_suggestion()
 
@@ -241,8 +242,8 @@ def test_config_precedence_keeps_effort_compatible(tmp_path, monkeypatch) -> Non
 
     config = committer._load_config()
 
-    assert config["openai"]["model"] == "gpt-5-nano"
-    assert config["openai"]["reasoning_effort"] == "none"
-    params = model_parameters(config["openai"])
+    assert config["api"]["model"] == "gpt-5-nano"
+    assert config["api"]["reasoning_effort"] == "none"
+    params = model_parameters(config["api"])
     assert params["reasoning_effort"] == "minimal"
     assert "temperature" not in params

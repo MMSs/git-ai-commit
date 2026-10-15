@@ -10,14 +10,17 @@ suggestion:
   # Maximum characters per line
   max_length_per_line: 72
 
-# OpenAI API settings
+# API backend settings
 # Recommended models (Chat Completions, text-only requests):
 #   - gpt-6-luna (default: fast, inexpensive commit summaries)
 #   - gpt-6.1-sol (more complex changes; minimum effort: low)
 #   - gpt-6-astra (highest capability; minimum effort: low)
 #   - gpt-5.4-mini (GPT-5 alternative)
 # See README.md for supported models and automatic effort translation.
-openai:
+api:
+  # Provider: only "openai" is supported for now
+  provider: openai
+
   model: gpt-6-luna
 
   # Temperature: Sent for GPT-5.1+ and GPT-6 only at effective effort "none".
