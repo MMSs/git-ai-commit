@@ -247,3 +247,11 @@ def test_config_precedence_keeps_effort_compatible(tmp_path, monkeypatch) -> Non
     params = model_parameters(config["api"])
     assert params["reasoning_effort"] == "minimal"
     assert "temperature" not in params
+
+
+async def test_generated_message_is_cleaned() -> None:
+    committer = make_committer("gpt-6-luna", "none")
+    response = committer.client.chat.completions.create.return_value
+    response.choices[0].message.content = "```\nfix: handle input\n```\n"
+
+    assert await committer.generate_suggestion() == "fix: handle input"

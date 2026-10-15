@@ -14,7 +14,7 @@ import sys
 from openai import AsyncOpenAI
 
 from git_ai_commit_models import model_parameters
-from git_ai_commit_backends import normalize_legacy_config
+from git_ai_commit_backends import clean_output, normalize_legacy_config
 
 
 def print_output(message: str, is_error: bool = False) -> None:
@@ -1178,7 +1178,7 @@ Do NOT use: markdown, code blocks, backticks, or double quotes.
 
             response = await self.client.chat.completions.create(**api_params)
 
-            suggestion = response.choices[0].message.content or ""
+            suggestion = clean_output(response.choices[0].message.content or "")
 
             # Validate completion mode responses: AI might return full message instead of continuation
             if self.mode == "completion" and self.partial_text:
