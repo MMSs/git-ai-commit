@@ -1,9 +1,11 @@
+import argparse
 import asyncio
 import copy
 import hashlib
 import json
 import os
 import re
+import signal
 import subprocess
 import time
 import yaml
@@ -11,10 +13,13 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 import sys
 
-from openai import AsyncOpenAI
-
-from git_ai_commit_models import model_parameters
-from git_ai_commit_backends import clean_output, normalize_legacy_config
+from git_ai_commit_backends import (
+    VALID_BACKENDS,
+    build_backend,
+    clean_output,
+    normalize_legacy_config,
+    resolve_backend,
+)
 
 
 def print_output(message: str, is_error: bool = False) -> None:
@@ -186,12 +191,9 @@ except yaml.YAMLError as e:
 
 
 class GitAICommit:
-    def __init__(self):
+    def __init__(self, *, backend: Optional[str] = None):
         self.config = self._load_config()
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY environment variable is not set")
-        self.client = AsyncOpenAI(api_key=api_key)
+        self.backend = build_backend(self.config, resolve_backend(self.config, backend))
 
         # Detect mode and partial text from environment variables
         # Mode can be "generation" (default) or "completion"
@@ -1130,7 +1132,7 @@ Do NOT use: markdown, code blocks, backticks, or double quotes.
         return prompt
 
     async def generate_suggestion(self) -> Optional[str]:
-        """Generate a commit message suggestion using AI.
+        """Generate a commit message suggestion with the configured backend.
 
         Uses static/dynamic context separation for optimal API caching:
         - System message contains static context (cacheable by OpenAI)
@@ -1167,18 +1169,11 @@ Do NOT use: markdown, code blocks, backticks, or double quotes.
                 system_prompt = "You are a Git commit message generator specializing in conventional commits and gitmoji formats."
                 user_prompt = self._build_prompt(diff, self.get_repo_context())
 
-            # Build API parameters
-            api_params: Dict[str, Any] = {
-                **model_parameters(self.config["api"]),
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-            }
-
-            response = await self.client.chat.completions.create(**api_params)
-
-            suggestion = clean_output(response.choices[0].message.content or "")
+            suggestion = clean_output(
+                await self.backend.complete(
+                    system_prompt=system_prompt, user_prompt=user_prompt
+                )
+            )
 
             # Validate completion mode responses: AI might return full message instead of continuation
             if self.mode == "completion" and self.partial_text:
@@ -1198,15 +1193,35 @@ Do NOT use: markdown, code blocks, backticks, or double quotes.
             return None
 
 
-def main():
-    committer = GitAICommit()
+def _raise_keyboard_interrupt(signum, frame) -> None:
+    raise KeyboardInterrupt
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="git-ai-commit",
+        description="Generate a commit message for the staged changes.",
+    )
+    parser.add_argument(
+        "--backend",
+        choices=VALID_BACKENDS,
+        help="override the configured backend for this run",
+    )
+    args = parser.parse_args(argv)
+    # SIGTERM takes the same cleanup path as Ctrl+C, so the command is killed.
+    previous_handler = signal.signal(signal.SIGTERM, _raise_keyboard_interrupt)
 
     try:
+        committer = GitAICommit(backend=args.backend)
         suggestion = asyncio.run(committer.generate_suggestion())
         return 0 if suggestion else 1
+    except KeyboardInterrupt:
+        return 130
     except Exception as e:
         print_output(f"Error: {str(e)}", is_error=True)
         return 1
+    finally:
+        signal.signal(signal.SIGTERM, previous_handler)
 
 
 if __name__ == "__main__":

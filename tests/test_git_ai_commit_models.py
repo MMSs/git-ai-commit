@@ -10,6 +10,7 @@ import pytest
 from openai import AsyncOpenAI
 
 from git_ai_commit import GitAICommit
+from git_ai_commit_backends import ApiBackend
 from git_ai_commit_models import model_parameters
 
 
@@ -33,11 +34,12 @@ def make_committer(model: str, effort: object, mode: str = "generation") -> GitA
     response = SimpleNamespace(
         choices=[SimpleNamespace(message=SimpleNamespace(content="fix: handle input"))],
     )
-    committer.client = SimpleNamespace(
+    client = SimpleNamespace(
         chat=SimpleNamespace(
             completions=SimpleNamespace(create=AsyncMock(return_value=response)),
         ),
     )
+    committer.backend = ApiBackend(committer.config["api"], client=client)
     return committer
 
 
@@ -88,7 +90,7 @@ async def test_model_parameters(
     assert suggestion == (
         "handle input" if mode == "completion" else "fix: handle input"
     )
-    params = committer.client.chat.completions.create.call_args.kwargs
+    params = committer.backend.client.chat.completions.create.call_args.kwargs
     assert params["model"] == model
     assert params.get("reasoning_effort") == effective
     assert ("temperature" in params) is temperature
@@ -104,7 +106,7 @@ async def test_invalid_effort_fails_before_api_call(effort, capsys) -> None:
     committer = make_committer("gpt-6-luna", effort)
 
     assert await committer.generate_suggestion() is None
-    committer.client.chat.completions.create.assert_not_awaited()
+    committer.backend.client.chat.completions.create.assert_not_awaited()
     assert "reasoning_effort" in capsys.readouterr().err
 
 
@@ -125,7 +127,7 @@ async def test_unknown_models_use_conservative_parameters(model) -> None:
     committer = make_committer(model, "none")
 
     assert await committer.generate_suggestion() == "fix: handle input"
-    params = committer.client.chat.completions.create.call_args.kwargs
+    params = committer.backend.client.chat.completions.create.call_args.kwargs
     assert params["model"] == model
     assert "reasoning_effort" not in params
     assert "temperature" not in params
@@ -139,7 +141,7 @@ async def test_disabled_effort_is_omitted(model, effort) -> None:
     committer = make_committer(model, effort)
 
     assert await committer.generate_suggestion() == "fix: handle input"
-    params = committer.client.chat.completions.create.call_args.kwargs
+    params = committer.backend.client.chat.completions.create.call_args.kwargs
     assert "reasoning_effort" not in params
     assert "temperature" not in params
 
@@ -177,7 +179,7 @@ async def test_unlimited_output_omits_token_limit(max_tokens) -> None:
 
     assert (
         "max_completion_tokens"
-        not in committer.client.chat.completions.create.call_args.kwargs
+        not in committer.backend.client.chat.completions.create.call_args.kwargs
     )
 
 
@@ -214,7 +216,7 @@ async def test_real_sdk_serializes_compatible_request(model, effort) -> None:
         api_key="test-key",
         http_client=httpx.AsyncClient(transport=httpx.MockTransport(respond)),
     ) as client:
-        committer.client = client
+        committer.backend = ApiBackend(committer.config["api"], client=client)
 
         assert await committer.generate_suggestion() == "fix: handle input"
 
@@ -251,7 +253,7 @@ def test_config_precedence_keeps_effort_compatible(tmp_path, monkeypatch) -> Non
 
 async def test_generated_message_is_cleaned() -> None:
     committer = make_committer("gpt-6-luna", "none")
-    response = committer.client.chat.completions.create.return_value
+    response = committer.backend.client.chat.completions.create.return_value
     response.choices[0].message.content = "```\nfix: handle input\n```\n"
 
     assert await committer.generate_suggestion() == "fix: handle input"

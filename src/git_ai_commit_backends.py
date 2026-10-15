@@ -9,7 +9,67 @@ import signal
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
+
+from openai import AsyncOpenAI
+
+from git_ai_commit_models import model_parameters
+
+BACKEND_ENV_VAR = "GIT_AI_COMMIT_BACKEND"
+VALID_BACKENDS = ("api", "command")
+SUPPORTED_API_PROVIDERS = ("openai",)
+
+
+class Backend(Protocol):
+    async def complete(self, *, system_prompt: str, user_prompt: str) -> str: ...
+
+
+def resolve_backend(config: dict[str, Any], override: str | None = None) -> str:
+    """Pick the backend: CLI flag, then environment, then config, then ``api``."""
+    name = override or os.getenv(BACKEND_ENV_VAR) or config.get("backend") or "api"
+    if not isinstance(name, str) or name.strip().lower() not in VALID_BACKENDS:
+        raise ValueError(
+            f"Unknown backend {name!r}. Use one of: {', '.join(VALID_BACKENDS)}."
+        )
+    return name.strip().lower()
+
+
+def build_backend(config: dict[str, Any], name: str) -> Backend:
+    if name == "command":
+        return CommandBackend.from_config(config.get("command") or {})
+    return ApiBackend(config["api"])
+
+
+class ApiBackend:
+    """Call the configured API provider with Chat Completions."""
+
+    def __init__(
+        self, config: dict[str, Any], *, client: AsyncOpenAI | None = None
+    ) -> None:
+        provider = config.get("provider", "openai")
+        if provider not in SUPPORTED_API_PROVIDERS:
+            raise ValueError(
+                f"Unsupported api.provider {provider!r}. "
+                f"Supported: {', '.join(SUPPORTED_API_PROVIDERS)}."
+            )
+        if client is None:
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                raise ValueError("OPENAI_API_KEY environment variable is not set")
+            client = AsyncOpenAI(api_key=api_key)
+        self.config = config
+        self.client = client
+
+    async def complete(self, *, system_prompt: str, user_prompt: str) -> str:
+        api_params: dict[str, Any] = {
+            **model_parameters(self.config),
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        }
+        response = await self.client.chat.completions.create(**api_params)
+        return response.choices[0].message.content or ""
 
 
 def normalize_legacy_config(config: Any) -> Any:
