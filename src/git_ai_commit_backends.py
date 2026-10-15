@@ -36,7 +36,13 @@ def resolve_backend(config: dict[str, Any], override: str | None = None) -> str:
 
 def build_backend(config: dict[str, Any], name: str) -> Backend:
     if name == "command":
-        return CommandBackend.from_config(config.get("command") or {})
+        command = config.get("command") or {}
+        if not isinstance(command, dict):
+            raise ValueError(
+                "command must be a mapping with an argv list, e.g. "
+                'command: {argv: ["claude", "-p"]}'
+            )
+        return CommandBackend.from_config(command)
     return ApiBackend(config["api"])
 
 

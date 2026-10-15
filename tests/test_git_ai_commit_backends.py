@@ -215,3 +215,9 @@ async def test_interrupting_generation_kills_command(
 
     await wait_until_dead(record["pid"])
     assert process.returncode != 0
+
+
+@pytest.mark.parametrize("command", ["claude -p", ["claude", "-p"]])
+def test_command_section_must_be_a_mapping(command) -> None:
+    with pytest.raises(ValueError, match="command must be a mapping with an argv list"):
+        build_backend({"command": command}, "command")
