@@ -20,7 +20,7 @@ TAB to generate a commit message.
 - [Oh My Zsh](https://ohmyz.sh/) installed
 - Python 3.11 or higher
 - [uv](https://github.com/astral-sh/uv) - Fast Python package installer (recommended)
-- OpenAI API key
+- OpenAI API key, or a local AI CLI (Claude Code, Codex, Cursor Agent, Ollama, …)
 
 ## Installation
 
@@ -51,7 +51,7 @@ UV_PROJECT_ENVIRONMENT="$PWD/.venv" uv sync --no-dev --locked
 plugins=(... git-ai-commit)
 ```
 
-5. Set your OpenAI API key in your `.zshrc`:
+5. Set your OpenAI API key in your `.zshrc` (skip if you only use a local CLI):
 
 ```bash
 export OPENAI_API_KEY='your-api-key-here'
@@ -116,13 +116,19 @@ suggestion:
   format: multi-line       # Options: single-line, multi-line
   max_length_per_line: 72
 
-# OpenAI API settings
-openai:
+# Where messages come from: api (default) or command
+backend: api
+
+# API backend settings
+api:
+  provider: openai
   model: gpt-6-luna
   reasoning_effort: none  # Lowest latency; translated automatically per model
   temperature: 0.7
   max_tokens: 0  # 0 = model output limit; positive limits include reasoning tokens
 ```
+
+Older configs with a top-level `openai:` section keep working; they are read as `api:`.
 
 See [config/default_config.yaml](config/default_config.yaml) for all available configuration options with detailed comments.
 
@@ -195,6 +201,74 @@ Sources: [GPT-5](https://developers.openai.com/api/docs/models/gpt-5),
 [GPT-5.5](https://developers.openai.com/api/docs/models/gpt-5.5),
 [GPT-6 Luna](https://developers.openai.com/api/docs/models/gpt-6-luna),
 and [migration guidance](https://developers.openai.com/api/docs/guides/latest-model).
+
+## Local CLI Backends
+
+Instead of calling the OpenAI API, git-ai-commit can run any local AI CLI you already use. Set `backend: command` and describe the command:
+
+```yaml
+backend: command
+command:
+  argv: ["claude", "-p", "--output-format", "text", "--model", "haiku"]
+  timeout_seconds: 60
+```
+
+`argv` runs directly, never through a shell, in an empty temporary directory. All repository context is already in the prompt, so the CLI does not need to read your files.
+
+| Placeholder | Meaning | If absent |
+|---|---|---|
+| `{prompt}` | Prompt as an argument | Prompt is sent on stdin (recommended: large diffs can exceed argument limits) |
+| `{system_prompt}` | System prompt as an argument | System prompt is prepended to the prompt |
+| `{output_file}` | Temp file the CLI writes its answer to | stdout is read |
+
+Switch backends without editing config:
+
+```bash
+export GIT_AI_COMMIT_BACKEND=command   # this shell
+git-ai-commit --backend api            # one manual run
+```
+
+Precedence: `--backend` > `GIT_AI_COMMIT_BACKEND` > project config > global config > `api`. `OPENAI_API_KEY` is only needed for the `api` backend.
+
+Local CLIs start slower than an API call (often several seconds) and do not use OpenAI prompt caching. Pick a small, fast model. On timeout or Ctrl+C the CLI and any processes it started are stopped.
+
+### Recipes
+
+Flags change between releases; check `<tool> --help` if a recipe stops working.
+
+**Claude Code** (tools disabled, system prompt passed separately):
+
+```yaml
+command:
+  argv: ["claude", "-p", "--output-format", "text", "--model", "haiku",
+         "--tools", "", "--system-prompt", "{system_prompt}"]
+```
+
+**Codex** (read-only sandbox, answer read from a file):
+
+```yaml
+command:
+  argv: ["codex", "exec", "-c", "model_reasoning_effort=low", "-s", "read-only",
+         "--skip-git-repo-check", "-o", "{output_file}", "-"]
+```
+
+Add `"-m", "<model>"` to pick a model; ChatGPT-account logins accept fewer models than API-key logins.
+
+**Cursor Agent**:
+
+```yaml
+command:
+  argv: ["cursor-agent", "-p", "--output-format", "text", "--model", "auto",
+         "{prompt}"]
+```
+
+**Ollama** (fully local):
+
+```yaml
+command:
+  argv: ["ollama", "run", "--hidethinking", "qwen3:8b"]
+  timeout_seconds: 120
+```
 
 ## Usage
 

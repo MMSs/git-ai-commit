@@ -10,7 +10,7 @@
 #
 # Prerequisites:
 #   - git-ai-commit plugin installed in Oh My Zsh
-#   - OPENAI_API_KEY environment variable set
+#   - OPENAI_API_KEY set (api backend) or a configured command backend
 #   - Staged changes in the repository
 #
 # Exit codes:
