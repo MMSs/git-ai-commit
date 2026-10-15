@@ -254,13 +254,15 @@ command:
 
 Add `"-m", "<model>"` to pick a model; ChatGPT-account logins accept fewer models than API-key logins.
 
-**Cursor Agent**:
+**Cursor Agent** (read-only ask mode; `--trust` lets it run in the empty temp directory):
 
 ```yaml
 command:
-  argv: ["cursor-agent", "-p", "--output-format", "text", "--model", "auto",
-         "{prompt}"]
+  argv: ["cursor-agent", "-p", "--mode", "ask", "--trust",
+         "--output-format", "text", "--model", "auto"]
 ```
+
+Keep `--mode ask`: in print mode Cursor Agent otherwise has write and shell access. Avoid `--force`/`--yolo`.
 
 **Ollama** (fully local):
 
