@@ -133,7 +133,7 @@ _git_ai_commit_display_message() {
 
 # Function to animate loading dots
 _git_ai_commit_loading() {
-    local base_msg="🤖 Generating commit message"
+    local base_msg="🤖 Generating commit message${GIT_AI_COMMIT_BACKEND:+ (${GIT_AI_COMMIT_BACKEND})}"
     local color=3  # Yellow
 
     while true; do

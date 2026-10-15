@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Git AI Commit is an Oh My Zsh plugin that generates AI-powered Git commit messages. It intercepts TAB key presses during `git commit -m` commands, analyzes staged changes and repository context, then inserts a commit message suggestion into the command line.
 
-**Tech Stack**: Python 3.11+ (core logic) + Zsh (shell integration) + OpenAI API
+**Tech Stack**: Python 3.11+ (core logic) + Zsh (shell integration) + OpenAI API or a local AI CLI
 
 ## Development Commands
 
@@ -52,7 +52,7 @@ deactivate
 1. **Python Layer** (`src/git_ai_commit.py`): Core logic
    - Analyzes git diffs and repository context
    - Builds prompts with static (cacheable) and dynamic context
-   - Calls OpenAI Chat Completions without streaming
+   - Sends the prompts to a backend: the OpenAI API (non-streaming Chat Completions) or a user-configured local CLI
    - Outputs commit message to stdout
 
 2. **Zsh Layer** (`git-ai-commit.plugin.zsh`): Shell integration
@@ -74,6 +74,14 @@ deactivate
 - `_build_static_context()`: Cacheable repo context (README, tech stack, recent commits)
 - `_build_dynamic_context()`: Per-commit context (diff, change stats)
 - `generate_suggestion()`: Main async entry point
+
+**Backends** (src/git_ai_commit_backends.py):
+
+- `resolve_backend()`: `--backend` > `GIT_AI_COMMIT_BACKEND` > project > global > `api`
+- `ApiBackend`: OpenAI Chat Completions; the only place `OPENAI_API_KEY` is required
+- `CommandBackend`: runs `command.argv` without a shell in an empty temp dir, own process group; `{prompt}`, `{system_prompt}`, `{output_file}` placeholders, stdin/stdout by default; kills the group on timeout, Ctrl+C or SIGTERM
+- `normalize_legacy_config()`: maps a top-level `openai:` block to `api:` per config file
+- `clean_output()`: strips preamble lines, code fences and wrapping quotes for both backends
 
 **CacheManager Class** (src/git_ai_commit.py:28-151):
 
@@ -201,7 +209,9 @@ Note: JSON configs (`.json`) are still supported for backward compatibility but 
 Key config sections:
 
 - `suggestion`: Convention (conventional/gitmoji/traditional), format (single/multi-line), line length
-- `openai`: Model (default `gpt-6-luna`), automatically normalized `reasoning_effort`, temperature, max_tokens
+- `backend`: `api` (default) or `command`
+- `api`: `provider` (only `openai`), model (default `gpt-6-luna`), automatically normalized `reasoning_effort`, temperature, max_tokens. Legacy top-level `openai:` is read as `api:`
+- `command`: `argv` and `timeout_seconds` (default 60)
 - `context`: Token budget, commit history, smart filtering, README lines, tech detection
 - `caching`: TTL, API prompt caching, local caching
 
@@ -245,7 +255,7 @@ Uses `zsh/terminfo` module for cursor positioning:
 - Null, empty, false, or missing effort omits the parameter; explicit `none` still translates per model. Unknown models and `o1-mini` omit both effort and temperature.
 - Listed model aliases and dated snapshots are recognized; unlisted variants pass through with conservative API defaults. This workflow uses Chat Completions without tools.
 - Dependency requirements live in `pyproject.toml`; setup fingerprints the entire dependency declaration instead of hard-coding an SDK version.
-- Wheel packaging exposes the two top-level modules used by the console entry point and includes `git_ai_commit_data/default_config.yaml`. Direct source execution still loads `config/default_config.yaml`.
+- Wheel packaging exposes the three top-level modules (git_ai_commit, git_ai_commit_models, git_ai_commit_backends) used by the console entry point and includes `git_ai_commit_data/default_config.yaml`. Direct source execution still loads `config/default_config.yaml`.
 
 See README.md for the supported-model table and official documentation links.
 

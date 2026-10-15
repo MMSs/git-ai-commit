@@ -10,14 +10,33 @@ suggestion:
   # Maximum characters per line
   max_length_per_line: 72
 
-# OpenAI API settings
+# Backend: where commit messages come from
+#   api     - call an API provider directly (default)
+#   command - run a local CLI such as claude, codex, cursor-agent or ollama
+# Override per shell with GIT_AI_COMMIT_BACKEND, or per run with --backend.
+backend: api
+
+# Command backend settings (used when backend: command)
+# argv is run directly, never through a shell. Placeholders:
+#   {prompt}         prompt as an argument (otherwise sent on stdin)
+#   {system_prompt}  system prompt as an argument (otherwise prepended to the prompt)
+#   {output_file}    temp file the CLI writes its answer to (otherwise stdout is read)
+# See README.md "Local CLI Backends" for ready-made recipes.
+command:
+  # argv: ["claude", "-p", "--output-format", "text", "--model", "haiku"]
+  timeout_seconds: 60
+
+# API backend settings
 # Recommended models (Chat Completions, text-only requests):
 #   - gpt-6-luna (default: fast, inexpensive commit summaries)
 #   - gpt-6.1-sol (more complex changes; minimum effort: low)
 #   - gpt-6-astra (highest capability; minimum effort: low)
 #   - gpt-5.4-mini (GPT-5 alternative)
 # See README.md for supported models and automatic effort translation.
-openai:
+api:
+  # Provider: only "openai" is supported for now
+  provider: openai
+
   model: gpt-6-luna
 
   # Temperature: Sent for GPT-5.1+ and GPT-6 only at effective effort "none".
